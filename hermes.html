@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>hermes test page</title>
+  </head>
+  <body>
+		<script>
+			// declaring as a global variable is necessary
+			var connection;
+
+			// initial setup
+			document.body.onload = function() {
+			// make a test chatbox
+			createChatbox();
+			
+			// connect the websocket
+			connect();
+			};
+
+			// create a hermes chatbox
+			function createChatbox() {
+			// create the outer chatbox
+			chatbox = document.createElement('div');
+			chatbox.classList.add('hermes-chatbox');
+			chatbox.style.position = 'absolute';
+			chatbox.style.bottom = '0px';
+			chatbox.style.right = '0px';
+			chatbox.style.width = '248px';
+			chatbox.style.height = '400px';
+			chatbox.style.margin = '0px 20px';
+			chatbox.style.padding = '0px';
+			chatbox.style.background = '#F5F5F5';
+			chatbox.style.border = '1px solid #CCC';
+			chatbox.style.webkitTransition = 'height 0.5s';
+			
+			// create a little way to close the chatbox
+			hide = document.createElement('div');
+			hide.classList.add('hermes-display-chatbox');
+			hide.innerText = 'hide';
+			hide.style.position = 'relative';
+			hide.style.top = '0px';
+			hide.style.height = '19px';
+			hide.style.width = '248px';
+			hide.style.margin = '0px';
+			hide.style.padding = '0px';
+			hide.style.background = '#EEE';
+			hide.style.borderBottom = '1px solid #CCC';
+			hide.style.textAlign = 'center';
+			hide.style.cursor = 'pointer';
+			hide.onclick = function(){
+			chatbox = hide.parentElement;
+			if(hide.classList.toggle('hermes-display-chatbox')){
+	    chatbox.style.height = '400px';
+	    setTimeout(function(){
+			chatbox.children[1].style.display = 'block';
+			chatbox.children[2].style.display = 'block';
+			chatbox.children[1].scrollTop = chatbox.children[1].scrollHeight - parseInt(chatbox.children[1].style.height);
+			chatbox.children[1].style.opacity = '0';
+			chatbox.children[2].style.opacity = '0';
+			chatbox.children[1].style.opacity = '1';
+			chatbox.children[2].style.opacity = '1';
+	    }, 500);
+	    hide.innerText = 'hide';	
+	    hide.style.borderBottom = '1px solid #CCC';	
+			}
+			else {
+	    chatbox.children[1].style.opacity = '0';
+	    chatbox.children[2].style.opacity = '0';
+	    setTimeout(function(){
+			chatbox.children[1].style.display = 'none';
+			chatbox.children[2].style.display = 'none';
+			chatbox.style.height = '20px';
+	    }, 250);
+	    setTimeout(function(){
+			hide.style.borderBottom = '';
+	    }, 710);
+	    hide.innerText = 'show';
+			}
+			}
+			chatbox.appendChild(hide);
+			
+			// create an area for the dialogue to be displayed
+			dialogue = document.createElement('div');
+			dialogue.classList.add('hermes-dialogue');
+			dialogue.style.position = 'relative';
+			dialogue.style.top = '0px';
+			dialogue.style.height = '304px';
+			dialogue.style.width = '248px';
+			dialogue.style.margin = '0px';
+			dialogue.style.padding = '0px';
+			dialogue.style.borderBottom = '1px solid #CCC';
+			dialogue.style.overflowY = 'scroll';
+			dialogue.style.webkitTransition = 'opacity 0.5s';
+			chatbox.appendChild(dialogue);
+			
+			// create an input for the user to type into and put it in the chatbox
+			input = document.createElement('div');
+			input.classList.add('hermes-input');
+			input.contentEditable = 'true';
+			input.onkeydown = function(event){
+			if(event.keyCode == 13){
+	    send(input.innerText);
+	    input.innerText = '';
+			}
+			};
+			input.style.position = 'relative';
+			input.style.top = '0px';
+			input.style.height = '65px';
+			input.style.maxHeight = '65px';
+			input.style.width = '238px';
+			input.style.maxWidth = '248px';
+			input.style.margin = '0px';
+			input.style.padding = '5px';
+			input.style.background = '#F9F9F9';
+			input.style.overflowY = 'scroll';
+			input.style.webkitTransition = 'opacity 0.5s';
+			input.innerText = 'type a message here...';
+			input.onfocus = function(){
+			input.innerText = '';
+			}
+			input.onblur = function(){
+			input.innerText = 'type a message here...';
+			}
+			chatbox.appendChild(input);
+
+			// put it all into the end of the body element
+			document.body.appendChild(chatbox);	
+			}
+
+			// creates a websocket connection
+			function connect() {
+			connection = new WebSocket('ws://localhost:8080');
+
+			connection.onopen = function(event) {
+			connection.send('connected');
+			console.log('sent: connected');
+			}
+
+			connection.onerror = function(event) {
+			console.log(event.data);
+			}
+
+			connection.onmessage = function(event) {
+			msg = document.createElement('p');
+			msg.classList.add('hermes-msg-received');
+			msg.innerText = event.data;
+			msg.style.margin = '10px 5px 10px 75px';
+			msg.style.padding = '5px';
+			msg.style.background = '#B7F1FF';
+			msg.style.border = '1px solid #7BE6FF';
+			msg.style.borderRadius = '3px';
+			msg.style.wordWrap = 'break-word';
+			dialogue = document.querySelector('.hermes-dialogue');
+			dialogue.appendChild(msg);
+			dialogue.scrollTop = dialogue.scrollHeight - parseInt(dialogue.style.height);
+			console.log('received: ' + event.data);
+			}
+			}
+
+			// handy senderater
+			function send(message) {
+			if(connection.readyState){
+			connection.send(message); 
+			msg = document.createElement('p');
+			msg.classList.add('hermes-msg-sent');
+			msg.innerText = message;
+			msg.style.margin = '10px 75px 10px 5px';
+			msg.style.padding = '5px';
+			msg.style.background = '#B4FFB4';
+			msg.style.border = '1px solid #77FF77';
+			msg.style.borderRadius = '3px';
+			msg.style.wordWrap = 'break-word';
+			dialogue = document.querySelector('.hermes-dialogue');
+			dialogue.appendChild(msg);
+			dialogue.scrollTop = dialogue.scrollHeight - parseInt(dialogue.style.height);
+			console.log('sent: ' + message);
+			}
+			else {
+			console.log('message not sent, not connected');
+			}
+			}
+		</script>
+  </body>
+</html>

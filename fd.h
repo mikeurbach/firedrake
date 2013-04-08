@@ -7,10 +7,11 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdint.h>
 
 typedef struct _fd_socket_t{
 	int	sock_fd;
-	
+
 
 }fd_socket_t;
 

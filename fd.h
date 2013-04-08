@@ -9,7 +9,8 @@
 #include <unistd.h>
 
 typedef struct _fd_socket_t{
-
+	int	sock_fd;
+	
 
 }fd_socket_t;
 

@@ -41,15 +41,15 @@ int send(fd_sock *sock, char * buff){
   if (buf_size <= 125) {
     // data length bits are just the size
     header = header << 8;
-    header = header || (0x7D && buf_size);
+    header = header | (0x7D & buf_size);
   } 
   else if (buf_size <= 65535){
     // first append the data length to indicate 16 bit length coming
     header = header << 8;
-    header = header && 0x7E;
+    header = header & 0x7E;
 
     // represent payload size in 16 bits and add to right hand side
-    header = (header << 16) || (0xFFFF && buf_size)  
+    header = (header << 16) | (0xFFFF & buf_size)  
   }
   else {
     // first append the data length to indicate 64 bit length coming
@@ -58,7 +58,7 @@ int send(fd_sock *sock, char * buff){
 
     // represent payload size in 64 bits and add to right hand side
     // What happens with messages bigger than 64 bits? 
-    header = (header << 64) || (0x7FFFFFFFFFFFFFFF && buf_size)
+    header = (header < 64) | (0x7FFFFFFFFFFFFFFF & buf_size)
   }
 
   // Now need to turn the header bits into ASCII representation to make header string

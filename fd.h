@@ -8,12 +8,15 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 typedef struct _fd_socket_t{
-	int	sock_fd;
+	int	tcp_sock;
 
 
 }fd_socket_t;
 
 
-int recv(fd_socket_t *sock, char *buff);
+int fd_recv(fd_socket_t *sock, char *buff);
+
+#endif

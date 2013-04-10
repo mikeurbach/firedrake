@@ -18,6 +18,14 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include <openssl/sha.h>
+#include <stdint.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include "base64.h"
 #include "macros.h"
 
 #define MAXLINE 4096 /*max text line length*/
@@ -32,5 +40,11 @@ struct client{
 	int		id,	sockfd;
 	char	uname[NAMELEN];
 };
+
+char *base64_encode(const unsigned char *data, size_t input_length, size_t *output_length);
+unsigned char *base64_decode(const char *data, size_t input_length, size_t *output_length);
+void build_decoding_table();
+void base64_cleanup();
+
 
 #endif /* CHAT_SERVER_H_ */

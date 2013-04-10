@@ -5,6 +5,7 @@
 static void get_connections(int);
 void* setup_client(void *args);
 void handshake(int);
+void echo(int);
 
 Client  *clients;
 int   num_clients, port;
@@ -69,13 +70,17 @@ static void get_connections(int port){
     if(num_clients < LISTENQ){
       handshake(connfd);
     }
+
+		/* now just be an echo server */
+		echo(connfd);
   }
 }
 
 void handshake(int connfd) {
 	char recvbuff[MAXLINE];
-	char *line, *key;
-	int recvbytes;
+	char *line, *key, *encoded, *headers, *response;
+	const unsigned char *digest;
+	int recvbytes, respbytes, keylen, resplen;
 	
 	/* receive the initial HTTP request */
 	recvbytes = recv(connfd, recvbuff, MAXLINE, 0);
@@ -84,26 +89,70 @@ void handshake(int connfd) {
 		exit(errno);
 	}
 
-	printf("HTTP request received, initiating handshake...\n");
-
-	printf("%s\n", recvbuff);
+	printf("HTTP request received: %s\n", recvbuff);
 
 	/* parse out the Sec-Websocket-Key header */
-	line = strtok(recvbuff, "\n");
+	line = strtok(recvbuff, "\r\n");
 	while(line != NULL &&
 				strncmp(line, HEADERKEY, (int) strlen(HEADERKEY)) != 0) {
-		line = strtok(NULL, "\n");
+		line = strtok(NULL, "\r\n");
 	}
 	
 	/* get just the key out of the header */
 	for( ; *line != ' '; line++);
 	line++;
 
-	key = malloc(strlen(line) + strlen(MAGICSTRING) + 1024);
-	memset(key, 0, sizeof(key));
-	printf("line: %s\n", line);
-	strcpy(key, line);
-	printf("key after strcpy: %s\n", key);
-	key = strcat(key, MAGICSTRING);
-	printf("key after strcat: %s\n", key);
+	/* concatenate the key and the magic string */
+	keylen = strlen(line) + strlen(MAGICSTRING);
+	key = malloc(keylen);
+	memset(key, 0, keylen);
+	strncpy(key, line, strlen(line));
+	strncat(key, MAGICSTRING, strlen(MAGICSTRING));
+	printf("Key before SHA-1: %s\n", key);
+
+	/* compute an SHA-1 hash of the key */
+	digest = SHA1((const unsigned char *) key, strlen(key), NULL);
+	printf("SHA-1 digest: %s\n", digest);
+
+	/* base64 encode the digest */
+	encoded = b64_encode((char *) digest, strlen((char *) digest));
+	printf("Base64 encoded: %s\n", encoded);
+
+	/* assemble the response */
+	headers = 
+		"HTTP/1.1 101 Switching Protocols\r\n"			\
+		"Upgrade: websocket\r\n"										\
+		"Connection: Upgrade\r\n"										\
+		"Sec-WebSocket-Accept: ";
+
+	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n");
+	response = malloc(resplen);
+	memset(response, 0, resplen);
+	strcpy(response, headers);
+	strcat(response, encoded);
+	strcat(response, "\r\n\r\n");
+	printf("Response assembled:\n%s\n", response);
+
+	/* send back the handshake */
+	respbytes = send(connfd, response, resplen, 0);
+	if(respbytes == -1){
+		perror(__FILE__);
+		exit(errno);
+	}
+
+	printf("Response sent\n");
+}
+
+void echo(int connfd){
+	char recvbuff[MAXLINE];
+	int n;
+
+	while(1){
+		n = recv(connfd, recvbuff, MAXLINE, 0);
+		if(n == -1){
+			perror(__FILE__);
+			exit(errno);
+		}
+		send(connfd, recvbuff, MAXLINE, 0);
+	}
 }

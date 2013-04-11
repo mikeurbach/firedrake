@@ -48,7 +48,8 @@ int main (int argc, char **argv){
 
     fd_socket_t *sock = malloc(sizeof(fd_socket_t));
     sock->tcp_sock = connfd;
-    fd_send(sock, "Hello, World");
+		/* fd_send(sock, "Hello"); */
+    fd_send(sock, "The quick brown fox jumped over the lazy dog. The quick brown fox jumped over the lazy dog. The quick brown fox jumped over the lazy dog.");
   }
 }
 

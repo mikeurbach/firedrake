@@ -26,26 +26,30 @@ int main (int argc, char **argv){
 	/* bind the socket */
   bind (listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
 
-	/* listen for sockets, taking up to LISTENQ connections */
+  /* listen for sockets, taking up to LISTENQ connections */
   listen (listenfd, LISTENQ);
 
   printf("Server waiting for connections...\n");
 
-	/* serve ad infinitum */
-	while(1) {
-		/* accept a connection */
+  /* serve ad infinitum */
+  while(1) {
+    /* accept a connection */
     clilen = sizeof(cliaddr);
     connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &clilen);
 
     printf("Connection %d accepted...\n", connfd);
 
-		/* complete the handshake */
-		if(handshake(connfd)){
-			printf("Handshake failed with connection %d...\n", connfd);
-		}
+    /* complete the handshake */
+    if(handshake(connfd)){
+      printf("Handshake failed with connection %d...\n", connfd);
+    }
 
-		printf("Handshake completed with connection %d...\n", connfd);
-	}
+    printf("Handshake completed with connection %d...\n", connfd);
+
+    fd_socket_t *sock = malloc(sizeof(fd_socket_t));
+    sock->tcp_sock = connfd;
+    fd_send(sock, "Hello, World");
+  }
 }
 
 int handshake(int connfd) {

@@ -28,7 +28,7 @@ int fd_send(fd_socket_t *sock, char *buff){
   char val;
   
 	// build up the header
-
+	memset(buff_to_send, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
   printf("buff to send: %s, size: %d\n", buff, buf_size);
 
   // first 4 bits (FIN, RSV1-3) are always 0 
@@ -42,7 +42,7 @@ int fd_send(fd_socket_t *sock, char *buff){
   if (buf_size <= 125) {
     // data length bits are just the size
 
-    header = header | ((0x7D & buf_size) << 8);
+    header = header | ((0x7F & buf_size) << 8);
 
 
 		/* stick the header in the buffer */

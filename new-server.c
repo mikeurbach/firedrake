@@ -2,14 +2,22 @@
 
 //#define DEBUG0
 
-static void get_connections();
+static void get_connections(int);
 void* setup_client(void *args);
+void handshake(int);
+void echo(int);
 
 Client  *clients;
-int   num_clients;
+int   num_clients, port;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main (int argc, char **argv){
+	if(argc != 2){
+		printf("usage: server <port>\n");
+		exit(1);
+	}
+
+	port = atoi(argv[1]);
 
   //set the initial state
   NEW_N(clients, Client, LISTENQ);
@@ -18,13 +26,13 @@ int main (int argc, char **argv){
     clients[i].id = 0;
   }
 
-  get_connections();
+  get_connections(port);
 
   free(clients);
 }
 
 //runs the main loop that gets connections from clients and spawns new threads
-static void get_connections(){
+static void get_connections(int port){
   int listenfd, connfd;
   socklen_t clilen;
   struct sockaddr_in cliaddr, servaddr;
@@ -40,7 +48,7 @@ static void get_connections(){
   //preparation of the socket address
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(SERV_PORT);
+  servaddr.sin_port = htons(port);
 
   //bind the socket
   bind (listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
@@ -56,31 +64,95 @@ static void get_connections(){
     //accept a connection
     connfd = accept (listenfd, (struct sockaddr *) &cliaddr, &clilen);
 
-    printf("%s\n","Received request...");
+    printf("%s\n","Connection accepted...");
 
-    //if itÕs 0, the thread was created properly
-    //make sure num_clients doesn't change during this!'
+    //if it's 0, the thread was created properly
     if(num_clients < LISTENQ){
-      setup_client((void *) &connfd);
+      handshake(connfd);
     }
+
+		/* now just be an echo server */
+		echo(connfd);
   }
 }
 
-void* setup_client(void *args){
-  int n, connfd;
-  char recvline[MAXLINE];
+void handshake(int connfd) {
+	char recvbuff[MAXLINE];
+	char *line, *key, *encoded, *headers, *response;
+	const unsigned char *digest;
+	int recvbytes, respbytes, keylen, resplen;
+	
+	/* receive the initial HTTP request */
+	recvbytes = recv(connfd, recvbuff, MAXLINE, 0);
+	if(recvbytes < 0){
+		perror(__FILE__);
+		exit(errno);
+	}
 
-  printf ("%s\n","Thread created for dealing with client requests");
+	printf("HTTP request received: %s\n", recvbuff);
 
-  connfd = *( (int *) args);
+	/* parse out the Sec-Websocket-Key header */
+	line = strtok(recvbuff, "\r\n");
+	while(line != NULL &&
+				strncmp(line, HEADERKEY, (int) strlen(HEADERKEY)) != 0) {
+		line = strtok(NULL, "\r\n");
+	}
+	
+	/* get just the key out of the header */
+	for( ; *line != ' '; line++);
+	line++;
 
-  n = recv(connfd, recvline, MAXLINE,0);
+	/* concatenate the key and the magic string */
+	keylen = strlen(line) + strlen(MAGICSTRING);
+	key = malloc(keylen);
+	memset(key, 0, keylen);
+	strncpy(key, line, strlen(line));
+	strncat(key, MAGICSTRING, strlen(MAGICSTRING));
+	printf("Key before SHA-1: %s\n", key);
 
-  if (n < 0){
-    printf("%s\n", "Read error");
-  }
+	/* compute an SHA-1 hash of the key */
+	digest = SHA1((const unsigned char *) key, strlen(key), NULL);
+	printf("SHA-1 digest: %s\n", digest);
 
-  printf("String received from the client: %s.\n", recvline);
+	/* base64 encode the digest */
+	encoded = b64_encode((char *) digest, strlen((char *) digest));
+	printf("Base64 encoded: %s\n", encoded);
 
-  return(NULL);
+	/* assemble the response */
+	headers = 
+		"HTTP/1.1 101 Switching Protocols\r\n"			\
+		"Upgrade: websocket\r\n"										\
+		"Connection: Upgrade\r\n"										\
+		"Sec-WebSocket-Accept: ";
+
+	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n");
+	response = malloc(resplen);
+	memset(response, 0, resplen);
+	strcpy(response, headers);
+	strcat(response, encoded);
+	strcat(response, "\r\n\r\n");
+	printf("Response assembled:\n%s\n", response);
+
+	/* send back the handshake */
+	respbytes = send(connfd, response, resplen, 0);
+	if(respbytes == -1){
+		perror(__FILE__);
+		exit(errno);
+	}
+
+	printf("Response sent\n");
+}
+
+void echo(int connfd){
+	char recvbuff[MAXLINE];
+	int n;
+
+	while(1){
+		n = recv(connfd, recvbuff, MAXLINE, 0);
+		if(n == -1){
+			perror(__FILE__);
+			exit(errno);
+		}
+		send(connfd, recvbuff, MAXLINE, 0);
+	}
 }

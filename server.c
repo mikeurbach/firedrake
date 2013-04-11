@@ -5,6 +5,10 @@ int main (int argc, char **argv){
   socklen_t clilen;
   struct sockaddr_in cliaddr, servaddr;
 
+  char junk[4000];
+
+  char buffer[MAX_MESSAGE_LEN];
+
 	/* read the port from the command line */
 	if(argc != 2){
 		printf("usage: server <port>\n");
@@ -48,8 +52,19 @@ int main (int argc, char **argv){
 
     fd_socket_t *sock = malloc(sizeof(fd_socket_t));
     sock->tcp_sock = connfd;
+<<<<<<< HEAD
 		/* fd_send(sock, "Hello"); */
     fd_send(sock, "The quick brown fox jumped over the lazy dog. The quick brown fox jumped over the lazy dog. The quick brown fox jumped over the lazy dog.");
+=======
+
+    fd_recv(sock, junk);
+
+    for(;;){
+    	fd_recv(sock, buffer);
+	}
+
+    printf("%s\n", buffer);
+>>>>>>> 85b8dd41a9034dc69dc5c59ee4b0b11833fc914c
   }
 }
 

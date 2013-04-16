@@ -42,6 +42,8 @@ unsigned char *base64_decode(const char *, size_t, size_t *);
 void build_decoding_table(void);
 void base64_cleanup(void);
 int fd_send(fd_socket_t *, char *);
+void fd_strcat(char *, char *, int);
+int fd_recv(fd_socket_t *sock, char *buff);
 
 #endif
 

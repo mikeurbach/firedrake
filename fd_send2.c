@@ -22,15 +22,13 @@
 #include "fd.h"
 
 int fd_send(fd_socket_t *sock, char *buff){
-  unsigned int header;
+  unsigned long long header, mask;
   int i = 0, skip, buf_size = strlen(buff);
-  char *buff_to_send;
+  char buff_to_send[MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1];
   char val;
-  char header_str[MAX_HEADER_LEN];
-	memset(header_str,0,strlen(header_str));
   
 	// build up the header
-
+	memset(buff_to_send, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
   printf("buff to send: %s, size: %d\n", buff, buf_size);
 
   // first 4 bits (FIN, RSV1-3) are always 0 
@@ -38,25 +36,25 @@ int fd_send(fd_socket_t *sock, char *buff){
   
   header = 0x81;
 
-  printf("first 4 header bits in decimal: %u and hex: %04x\n",header, header);
+
   
   // Use payload length to determine payload length bits 
   if (buf_size <= 125) {
     // data length bits are just the size
-    printf("Header shifted 8 right in decimal: %u and hex: %012x\n",header, header);
-    header = header | ((0x7D & buf_size) << 8);
-    printf("header + small payload in decimal: %u and hex: %012x\n",header, header);
+
+    header = header | ((0x7F & buf_size) << 8);
+
 
 		/* stick the header in the buffer */
 
 		/* first byte */
 		val = (char)(header & 0xFF);
-		header_str[i++] = val;
+		buff_to_send[i++] = val;
 		header = header >> 8;
 		
 		/* size byte */
 		val = (char)(header & 0xFF);
-		header_str[i++] = val;
+		buff_to_send[i++] = val;
 		header = header >> 8;
 
 		skip = 2;
@@ -71,20 +69,20 @@ int fd_send(fd_socket_t *sock, char *buff){
 		/* stick the header in the buffer */
 
 		/* first byte */
-		/* val = (char)(header & 0xFF); */
-		/* header_str[i++] = val; */
-		/* header = header >> 8; */
+		val = (char)(header & 0xFF);
+		buff_to_send[i++] = val;
+		header = header >> 8;
 		
-		/* /\* size byte *\/ */
-		/* val = (char)(header & 0xFF); */
-		/* header_str[i++] = val; */
-		/* header = header >> 8; */
+		/* size byte */
+		val = (char)(header & 0xFF);
+		buff_to_send[i++] = val;
+		header = header >> 8;
 
-		/* /\* two bytes for message length *\/ */
-		/* val = (char)((header & 0xFF00) >> 8); */
-		/* header_str[i++] = val; */
-		/* val = (char)(header & 0xFF); */
-		/* header_str[i++] = val; */
+		/* two bytes for message length */
+		val = (char)((header & 0xFF00) >> 8);
+		buff_to_send[i++] = val;
+		val = (char)(header & 0xFF);
+		buff_to_send[i++] = val;
 
 		skip = 4;
   }
@@ -95,6 +93,27 @@ int fd_send(fd_socket_t *sock, char *buff){
     // represent payload size in 64 bits and add to right hand side
     // What happens with messages bigger than 64 bits? 
     header = (header) | ((0x7FFFFFFFFFFFFFFF & buf_size) << 16);
+
+		/* stick the header in the buffer */
+
+		/* first byte */
+		val = (char)(header & 0xFF);
+		buff_to_send[i++] = val;
+		header = header >> 8;
+		
+		/* size byte */
+		val = (char)(header & 0xFF);
+		buff_to_send[i++] = val;
+		header = header >> 8;
+
+		/* 8 bytes for message length */
+		mask = 0xFF00000000000000;
+		int j;
+		for(j=56;j >= 0; j = j - 8) {
+			val = (char)((header & mask) >> j);
+			buff_to_send[i++] = val;
+			mask = mask >> 8;
+		}
 
   }
 
@@ -113,30 +132,20 @@ int fd_send(fd_socket_t *sock, char *buff){
 
   /* header_str = strrev(header_str); */
 
-  printf("Header_str: %s\n",header_str);
   // prepend header to buffer
-  buff_to_send = malloc(MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
-  buff_to_send = strcat(header_str, buff);
+  fd_strcat(buff_to_send, buff, skip);
   printf("buff: %s, buff_to_send: %s\n",buff,buff_to_send); 
 
   // send the buffer with the correct header to socket
-  return send(sock->tcp_sock,buff_to_send,strlen(buff_to_send),0);
-  
-
+  return send(sock->tcp_sock, buff_to_send, skip + strlen(buff),0);
 }
 
-char *fd_strcat(char *header, char *buff, int skip) {
-	char output[MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1];
+void fd_strcat(char *output, char *buff, int skip) {
 	int i,j;
-
-	for(i = 0, j = 0; j < strlen(header); i++, j++){
-		output[i] = header[j];
-	}
 
 	for(i = skip, j = 0; j < strlen(buff); i++, j++){
 		output[i] = buff[j];
 	}
 	output[i] = '\0';
 
-	return output;
 }

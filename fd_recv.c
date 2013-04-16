@@ -50,18 +50,26 @@ int fd_recv(fd_socket_t *sock, char *buff){
 
 */
 //Receive first byte of header
-	status = recv(sock->tcp_sock, (&temp), 4, 0);
+	status = recv(sock->tcp_sock, (&temp), 1, 0);
 
 //Parse FIN (1 bit) (is this the last fragment in the message?)
 //Parse RSV1, RSV2, and RSV3 (1 bit each) (Must be 0 unless 
 //an extension is negotiated that defines meanings for non-zero values)
 //Parse opcode (4 bits) (react according to RFC 6455)
 	fin = (temp & 0x80) >> 7;
+	printf("fd_recv: fin is %d\n", fin);
+
 	rsv1 = (temp & 0x40) >> 6;
+	printf("fd_recv: rsv1 is %d\n", rsv1);
+
 	rsv2 = (temp & 0x20) >> 5;
+	printf("fd_recv: rsv2 is %d\n", rsv2);
+
 	rsv3 = (temp & 0x10) >> 4;
+	printf("fd_recv: rsv3 is %d\n", rsv3);
 
 	opcode = (temp & 0xF);
+	printf("fd_recv: opcode is %X\n", opcode);
 
 //Parse mask (1 bit) (defines whether the "Payload data" is masked)
 
@@ -72,7 +80,10 @@ int fd_recv(fd_socket_t *sock, char *buff){
 //If 127, the following 8 bytes interpreted as a 64-bit unsigned integer with MSB = 0
 	status = recv(sock->tcp_sock, (&payload_len), 1, 0);
 	is_masked = (payload_len & 0x80) >> 7;
+	printf("fd_recv: is_masked is %d\n", is_masked);
+
 	payload_len = (payload_len & 0x7F);
+	printf("fd_recv: payload_len is %d\n", payload_len);
 
 	if(payload_len < PAYLOAD_EXT_16){
 		final_payload_len = payload_len;
@@ -85,21 +96,29 @@ int fd_recv(fd_socket_t *sock, char *buff){
 		status = recv(sock->tcp_sock, (&ext_payload_len2), 8, 0);
 		final_payload_len = ext_payload_len2;
 	}
+	printf("fd_recv: final_payload_len is %d\n", final_payload_len);
+
 
 //Parse Masking key (0 or 4 bytes) All frames from client to server are masked by this value
 //(absent if the mask is 0)
 
 	if(is_masked){
 		status = recv(sock->tcp_sock, (&mask_key), 4, 0);
-		//unmask the payload data
+		printf("fd_recv: mask is %X\n", mask_key);
 	}
+
 
 //Place Payload data in buffer and return status
  	status = recv(sock->tcp_sock, buff, final_payload_len, 0);
 
+ 	printf("fd_recv: masked data is \"%s\"\n", buff);
+
+
  	if(is_masked){
  		unmask_payload(buff, final_payload_len, mask_key);
 	}
+
+	printf("fd_recv: unmasked data is \"%s\"\n", buff);
 
 	return (status);
 }
@@ -110,16 +129,16 @@ static void unmask_payload(char* data, uint64_t len, uint32_t key){
 
 	for(int i = 0; i < len; i++){
 		switch (i % 4){
-			case 1: octet = (key & 0xFF);
+			case 0: octet = (key & 0xFF);
 					break;
 
-			case 2: octet = (key & 0xFF00);
+			case 1: octet = (key & 0xFF00) >> 8;
 					break;
 
-			case 3: octet = (key & 0xFF0000);
+			case 2: octet = (key & 0xFF0000) >> 16;
 					break;
 
-			case 4: octet = (key & 0xFF000000);
+			case 3: octet = (key & 0xFF000000) >> 24;
 					break;
 
 		}
@@ -130,10 +149,10 @@ static void unmask_payload(char* data, uint64_t len, uint32_t key){
 
 }
 
-int main (int argc, char **argv){
+/*int main (int argc, char **argv){
 
 	//a single frame masked text message that contains "hello"
 	//0x81 0x85 0x37 0xfa 0x21 0x3d 0x7f 0x9f 0x4d 0x51 0x58
 
 	return(EXIT_SUCCESS);
-}
+}*/

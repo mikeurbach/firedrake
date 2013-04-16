@@ -5,6 +5,8 @@ int main (int argc, char **argv){
   socklen_t clilen;
   struct sockaddr_in cliaddr, servaddr;
 
+  char buffer[MAX_MESSAGE_LEN];
+
 	/* read the port from the command line */
 	if(argc != 2){
 		printf("usage: server <port>\n");
@@ -48,7 +50,13 @@ int main (int argc, char **argv){
 
     fd_socket_t *sock = malloc(sizeof(fd_socket_t));
     sock->tcp_sock = connfd;
-    fd_send(sock, "Hello, World");
+
+    for(;;){
+			memset(buffer, 0, MAX_MESSAGE_LEN);
+    	fd_recv(sock, buffer);
+			printf("Echoing %s\n", buffer);
+			fd_send(sock, buffer);
+		}
   }
 }
 

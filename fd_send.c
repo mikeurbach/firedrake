@@ -21,7 +21,7 @@
 
 #include "fd.h"
 
-int fd_send(fd_socket_t *sock, char *buff){
+int fd_send(fd_socket_t *sock, char *buff, int opcode){
   unsigned int header;
   int i = 0, skip, buf_size = strlen(buff);
   char *buff_to_send;

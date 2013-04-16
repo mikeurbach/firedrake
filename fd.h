@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -33,7 +34,33 @@
 /* structs */
 typedef struct _fd_socket_t {
 	int	tcp_sock;
+
+	unsigned int last_recv_opcode;
+
+	bool is_open;
+
 } fd_socket_t;
+
+/* enum the opcodes for the data framing */
+enum OPCODE { 
+	CONTINUATION,
+	TEXT,
+	BINARY,
+	NC1,
+	NC2,
+	NC3,
+	NC4,
+	NC5,
+	CONNECTION_CLOSE,
+	PING,
+	PONG,
+	CF1,
+	CF2,
+	CF3,
+	CF4,
+	CF5,
+	OPEN,
+};
 
 /* function definitions */
 int handshake(int);
@@ -41,7 +68,7 @@ char *base64_encode(const unsigned char *, size_t, size_t *);
 unsigned char *base64_decode(const char *, size_t, size_t *);
 void build_decoding_table(void);
 void base64_cleanup(void);
-int fd_send(fd_socket_t *, char *);
+int fd_send(fd_socket_t *, char *, int opcode);
 void fd_strcat(char *, char *, int);
 int fd_recv(fd_socket_t *sock, char *buff);
 

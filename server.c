@@ -50,12 +50,14 @@ int main (int argc, char **argv){
 
     fd_socket_t *sock = malloc(sizeof(fd_socket_t));
     sock->tcp_sock = connfd;
+    sock->last_recv_opcode = OPEN;
+    sock->is_open = true;
 
     for(;;){
 			memset(buffer, 0, MAX_MESSAGE_LEN);
     	fd_recv(sock, buffer);
 			printf("Echoing %s\n", buffer);
-			fd_send(sock, buffer);
+			fd_send(sock, buffer, TEXT);
 		}
   }
 }

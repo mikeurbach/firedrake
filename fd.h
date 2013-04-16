@@ -71,6 +71,9 @@ void base64_cleanup(void);
 int fd_send(fd_socket_t *, char *, int opcode);
 void fd_strcat(char *, char *, int);
 int fd_recv(fd_socket_t *sock, char *buff);
+fd_socket_t *fd_socket_new(void);
+void fd_socket_destroy(fd_socket_t *sock);
+int fd_socket_close(fd_socket_t *sock);
 
 #endif
 

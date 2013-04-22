@@ -1,18 +1,18 @@
-
 CC = gcc
-CFLAGS = -Wall -g -std="c99" -pedantic 
+CFLAGS = -Wall -g -std=gnu99 -pedantic -Ilibev
 
-all: server
+all: fd_run
 
-chat_server.o: server.c base64.c fd_send2.c fd.h
-	$(CC) -c $(CFLAGS) -o server.o server.c
+obj: server2.c fd_run.c base64.c fd_send2.c fd_recv.c fd.h 
+	$(CC) -c $(CFLAGS) -o fd_run.o fd_run.c
 	$(CC) -c $(CFLAGS) -o base64.o base64.c
 	$(CC) -c $(CFLAGS) -o fd_send.o fd_send2.c
 	$(CC) -c $(CFLAGS) -o fd_recv.o fd_recv.c
+	$(CC) -c $(CFLAGS) -o server.o server2.c
 
-server: chat_server.o 
-	$(CC) $(CFLAGS) -o server server.o fd_send.o base64.o fd_recv.o -lpthread -lssl -lcrypto
+fd_run: obj
+	$(CC) $(CFLAGS) -o server server.o fd_run.o fd_send.o base64.o fd_recv.o -lpthread -lssl -lcrypto
 
 clean:
-	rm -f server $(OBJS) server.ob
-	rm *~ *#
+	rm -f fd_run *.o
+	rm -f *~ *#

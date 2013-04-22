@@ -4,7 +4,6 @@ int main (int argc, char **argv){
   int port, listenfd, connfd;
   socklen_t clilen;
   struct sockaddr_in cliaddr, servaddr;
-
   char buffer[MAX_MESSAGE_LEN];
 
 	/* read the port from the command line */
@@ -26,10 +25,10 @@ int main (int argc, char **argv){
   servaddr.sin_port = htons(port);
 
 	/* bind the socket */
-  bind (listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+  bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
 
   /* listen for sockets, taking up to LISTENQ connections */
-  listen (listenfd, LISTENQ);
+  listen(listenfd, LISTENQ);
 
   printf("Server waiting for connections...\n");
 

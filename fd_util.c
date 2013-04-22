@@ -21,7 +21,7 @@ void fd_socket_destroy(fd_socket_t *sock){
 
 int fd_socket_close(fd_socket_t *sock){
 
-	new_sock->is_open = false;
-	close(sock->tcp_sock);
+	sock->is_open = false;
+	return ( close(sock->tcp_sock) );
 
 }

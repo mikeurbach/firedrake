@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -42,26 +43,54 @@ typedef struct _fd_socket_t {
 	ev_io io;
 	int	tcp_sock;
 	char buffer[MAX_MESSAGE_LEN];
+	unsigned int last_recv_opcode;
+	bool is_open;
 } fd_socket_t;
 
-/* base64 function definitions */
+/* enum the opcodes for the data framing */
+enum OPCODE { 
+	CONTINUATION,
+	TEXT,
+	BINARY,
+	NC1,
+	NC2,
+	NC3,
+	NC4,
+	NC5,
+	CONNECTION_CLOSE,
+	PING,
+	PONG,
+	CF1,
+	CF2,
+	CF3,
+	CF4,
+	CF5,
+	OPEN,
+};
+
+/* handshaking function definitions */
+int handshake(int);
 char *base64_encode(const unsigned char *, size_t, size_t *);
 unsigned char *base64_decode(const char *, size_t, size_t *);
 void build_decoding_table(void);
 void base64_cleanup(void);
 
-/* firedrake function definitions */
-int fd_run(int);
-int fd_send(fd_socket_t *, char *);
-void fd_strcat(char *, char *, int);
-int fd_recv(fd_socket_t *, char *);
-
-/* client functions */
+/* callback functions */
 void accept_callback(struct ev_loop *, ev_io *, int);
 void handshake_callback_r(struct ev_loop *, ev_io *, int);
 void handshake_callback_w(struct ev_loop *, ev_io *, int);
 void client_callback_r(struct ev_loop *, ev_io *, int);
 void client_callback_w(struct ev_loop *, ev_io *, int);
+
+/* firedrake function definitions */
+int fd_run(int);
+int fd_send(fd_socket_t *, char *, int opcode);
+void fd_strcat(char *, char *, int);
+int fd_recv(fd_socket_t *, char *);
+fd_socket_t *fd_socket_new(void);
+void fd_socket_destroy(fd_socket_t *sock);
+int fd_socket_close(fd_socket_t *sock);
+
 
 #endif
 

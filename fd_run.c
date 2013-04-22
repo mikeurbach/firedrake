@@ -177,7 +177,7 @@ void client_callback_r(struct ev_loop *loop, ev_io *w, int revents){
 void client_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	fd_socket_t *client = (fd_socket_t *) w;
 
-	fd_send(client, client->buffer);
+	fd_send(client, client->buffer, TEXT);
 
 	printf("Client %d callback sent: %s\n", client->tcp_sock, client->buffer);
 

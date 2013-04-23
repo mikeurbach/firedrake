@@ -29,7 +29,7 @@ int fd_send(fd_socket_t *sock, char *buff){
   
 	// build up the header
 	memset(buff_to_send, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
-  printf("buff to send: %s, size: %d\n", buff, buf_size);
+	//  printf("buff passed into fd_send: %s, size: %d\n", buff, buf_size);
 
   // first 4 bits (FIN, RSV1-3) are always 0 
   // next 4 bits are opcode, we use 0x1 for text frame 
@@ -114,6 +114,8 @@ int fd_send(fd_socket_t *sock, char *buff){
 			buff_to_send[i++] = val;
 			mask = mask >> 8;
 		}
+		
+		skip = 10;
 
   }
 
@@ -134,9 +136,10 @@ int fd_send(fd_socket_t *sock, char *buff){
 
   // prepend header to buffer
   fd_strcat(buff_to_send, buff, skip);
-  printf("buff: %s, buff_to_send: %s\n",buff,buff_to_send); 
+  //  printf("buff_to_send: %s\n",buff_to_send); 
 
   // send the buffer with the correct header to socket
+
   return send(sock->tcp_sock, buff_to_send, skip + strlen(buff),0);
 }
 

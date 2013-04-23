@@ -6,13 +6,13 @@
 static void unmask_payload(char* data, uint64_t len, uint32_t key);
 
 int fd_recv(fd_socket_t *sock, char *buff){
-	
 	int					status = 0,
 						fin = 0,
 						rsv1 = 0,
 						rsv2 = 0,
 						rsv3 = 0,
-						is_masked = 0;
+	  is_masked = 0,
+	  offset = 0;
 
 	uint8_t				payload_len = 0,
 						temp = 0;
@@ -90,12 +90,21 @@ int fd_recv(fd_socket_t *sock, char *buff){
 	}
 	else if(payload_len == PAYLOAD_EXT_16){
 		status = recv(sock->tcp_sock, (&ext_payload_len1), 2, 0);
+	
+		// byte are recevied in wrong order, so need to reverse them
+		ext_payload_len1 = (0xFF00 & (ext_payload_len1 << 8)) | (0x00FF & (ext_payload_len1 >> 8));
 		final_payload_len = ext_payload_len1;
 	}
 	else if(payload_len == PAYLOAD_EXT_64){
-		status = recv(sock->tcp_sock, (&ext_payload_len2), 8, 0);
-		final_payload_len = ext_payload_len2;
+	  status = recv(sock->tcp_sock, (&ext_payload_len2), 8, 0);
+	  
+	  ext_payload_len2 = (ext_payload_len2 & 0x00000000000000FFUL) << 56 | (ext_payload_len2 & 0x000000000000FF00UL) << 40 |
+	    (ext_payload_len2 & 0x0000000000FF0000UL) << 24 | (ext_payload_len2 & 0x00000000FF000000UL) << 8 |
+	    (ext_payload_len2 & 0x000000FF00000000UL) >> 8 | (ext_payload_len2 & 0x0000FF0000000000UL) >> 24 |
+	    (ext_payload_len2 & 0x00FF000000000000UL) >> 40 | (ext_payload_len2 & 0xFF00000000000000UL) >> 56;		
+	  final_payload_len = ext_payload_len2;
 	}
+
 	printf("fd_recv: final_payload_len is %d\n", final_payload_len);
 
 
@@ -108,8 +117,16 @@ int fd_recv(fd_socket_t *sock, char *buff){
 	}
 
 
-//Place Payload data in buffer and return status
- 	status = recv(sock->tcp_sock, buff, final_payload_len, 0);
+	//Place Payload data in buffer and return status
+	while (offset < final_payload_len) {
+	  status = recv(sock->tcp_sock, buff + offset, final_payload_len - offset, 0);
+	  if(status < 0){
+		perror(__FILE__);
+		return 1;
+	  }
+	  offset += status;	
+	}
+
 
  	printf("fd_recv: masked data is \"%s\"\n", buff);
 

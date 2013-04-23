@@ -1,6 +1,6 @@
-/* fd_send.c by Matthew Diephuis
+/* fd_send2.c by Matthew Diephuis
 
- Implement send function for fire drake websocket library
+ Implement send function for firedrake websocket library
 
 
 */
@@ -21,7 +21,7 @@
 
 #include "fd.h"
 
-int fd_send(fd_socket_t *sock, char *buff){
+int fd_send(fd_socket_t *sock, char *buff, int opcode){
   unsigned long long header, mask;
   int i = 0, skip, buf_size = strlen(buff);
   char buff_to_send[MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1];

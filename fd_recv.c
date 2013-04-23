@@ -57,19 +57,19 @@ int fd_recv(fd_socket_t *sock, char *buff){
 //an extension is negotiated that defines meanings for non-zero values)
 //Parse opcode (4 bits) (react according to RFC 6455)
 	fin = (temp & 0x80) >> 7;
-	printf("fd_recv: fin is %d\n", fin);
+	//printf("fd_recv: fin is %d\n", fin);
 
 	rsv1 = (temp & 0x40) >> 6;
-	printf("fd_recv: rsv1 is %d\n", rsv1);
+	//printf("fd_recv: rsv1 is %d\n", rsv1);
 
 	rsv2 = (temp & 0x20) >> 5;
-	printf("fd_recv: rsv2 is %d\n", rsv2);
+	//printf("fd_recv: rsv2 is %d\n", rsv2);
 
 	rsv3 = (temp & 0x10) >> 4;
-	printf("fd_recv: rsv3 is %d\n", rsv3);
+	//printf("fd_recv: rsv3 is %d\n", rsv3);
 
 	opcode = (temp & 0xF);
-	printf("fd_recv: opcode is %X\n", opcode);
+	//printf("fd_recv: opcode is %X\n", opcode);
 
 //Parse mask (1 bit) (defines whether the "Payload data" is masked)
 
@@ -80,22 +80,24 @@ int fd_recv(fd_socket_t *sock, char *buff){
 //If 127, the following 8 bytes interpreted as a 64-bit unsigned integer with MSB = 0
 	status = recv(sock->tcp_sock, (&payload_len), 1, 0);
 	is_masked = (payload_len & 0x80) >> 7;
-	printf("fd_recv: is_masked is %d\n", is_masked);
+	//printf("fd_recv: is_masked is %d\n", is_masked);
 
 	payload_len = (payload_len & 0x7F);
-	printf("fd_recv: payload_len is %d\n", payload_len);
+	//printf("fd_recv: payload_len is %d\n", payload_len);
 
 	if(payload_len < PAYLOAD_EXT_16){
 		final_payload_len = payload_len;
 	}
 	else if(payload_len == PAYLOAD_EXT_16){
-		status = recv(sock->tcp_sock, (&ext_payload_len1), 2, 0);
-	
-		// byte are recevied in wrong order, so need to reverse them
+	  status = recv(sock->tcp_sock, (&ext_payload_len1), 2, 0);
+		
+
+// byte are recevied in wrong order, so need to reverse them
 		ext_payload_len1 = (0xFF00 & (ext_payload_len1 << 8)) | (0x00FF & (ext_payload_len1 >> 8));
 		final_payload_len = ext_payload_len1;
 	}
 	else if(payload_len == PAYLOAD_EXT_64){
+
 	  status = recv(sock->tcp_sock, (&ext_payload_len2), 8, 0);
 	  
 	  ext_payload_len2 = (ext_payload_len2 & 0x00000000000000FFUL) << 56 | (ext_payload_len2 & 0x000000000000FF00UL) << 40 |
@@ -113,7 +115,7 @@ int fd_recv(fd_socket_t *sock, char *buff){
 
 	if(is_masked){
 		status = recv(sock->tcp_sock, (&mask_key), 4, 0);
-		printf("fd_recv: mask is %X\n", mask_key);
+		//printf("fd_recv: mask is %X\n", mask_key);
 	}
 
 
@@ -128,7 +130,7 @@ int fd_recv(fd_socket_t *sock, char *buff){
 	}
 
 
- 	printf("fd_recv: masked data is \"%s\"\n", buff);
+ 	//printf("fd_recv: masked data is \"%s\"\n", buff);
 
 
  	if(is_masked){
@@ -136,6 +138,21 @@ int fd_recv(fd_socket_t *sock, char *buff){
 	}
 
 	printf("fd_recv: unmasked data is \"%s\"\n", buff);
+
+	sock->last_recv_opcode = opcode;
+
+	if(opcode == PING){
+		//send a pong
+		status = fd_send(sock, buff, PONG);
+	}
+	else if(opcode == PONG){
+		//check to make sure APPLICATION data is the same as was in the PING (how?)
+	}
+	else if(opcode == CONNECTION_CLOSE){
+		//send a matching CLOSE message and close the socket gracefully (fd_close function?)
+		status = fd_send(sock, buff, CONNECTION_CLOSE);
+
+	}
 
 	return (status);
 }

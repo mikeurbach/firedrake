@@ -21,5 +21,5 @@ legacy: obj
 	$(CC) $(CFLAGS) -o server_legacy server_legacy.o fd_run.o fd_send.o base64.o fd_recv.o -lpthread -lssl -lcrypto
 
 clean:
-	rm -f fd_run *.o
+	rm -f fd_run server_legacy *.o
 	rm -f *~ *#

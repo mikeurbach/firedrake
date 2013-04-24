@@ -33,7 +33,8 @@
 #define LISTENQ 20 /*maximum number of client connections*/
 #define HEADERKEY "Sec-WebSocket-Key"
 #define MAGICSTRING "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#define MAX_HEADER_LEN 10
+#define MIN_HEADER_LEN 6
+#define MAX_HEADER_LEN 14
 #define MAX_MESSAGE_LEN 100000
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
@@ -42,10 +43,21 @@
 typedef struct _fd_socket_t {
 	ev_io io;
 	int	tcp_sock;
-	char buffer[MAX_MESSAGE_LEN];
+	uint64_t bytes_expected;
+	uint64_t bytes_received;
+	int header_len;
+	uint32_t mask_key;
+	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	unsigned int last_recv_opcode;
 	bool is_open;
+	int event;
 } fd_socket_t;
+
+/* enum our own custom event types */
+enum EVENT {
+	FD_READ,
+	FD_WRITE
+};
 
 /* enum the opcodes for the data framing */
 enum OPCODE { 
@@ -81,6 +93,7 @@ void handshake_callback_r(struct ev_loop *, ev_io *, int);
 void handshake_callback_w(struct ev_loop *, ev_io *, int);
 void client_callback_r(struct ev_loop *, ev_io *, int);
 void client_callback_w(struct ev_loop *, ev_io *, int);
+void fd_recv_nb(struct ev_loop *, ev_io *, int);
 
 /* firedrake function definitions */
 int fd_run(int);

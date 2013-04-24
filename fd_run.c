@@ -155,7 +155,11 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 
 	/* stop waiting for a handshake read, initialize echo read */
 	ev_io_stop(loop, &client->io);
-	ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ);
+
+	/* ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ); */
+	/* ev_io_start(loop, &client->io); */
+	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+	ev_io_init(&client->io, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->io);
 }
 

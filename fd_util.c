@@ -12,8 +12,8 @@ fd_socket_t *fd_socket_new(void){
 	return (new_sock);
 }
 
-void fd_socket_destroy(fd_socket_t *sock){
-
+void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
+	ev_io_stop(loop, &sock->io);
 	fd_socket_close(sock);
 	free(sock);
 

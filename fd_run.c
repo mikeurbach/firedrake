@@ -159,6 +159,7 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	/* ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ); */
 	/* ev_io_start(loop, &client->io); */
 	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+	client->recvs = 0;
 	ev_io_init(&client->io, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->io);
 }
@@ -166,6 +167,7 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 void client_callback_r(struct ev_loop *loop, ev_io *w, int revents){
 	fd_socket_t *client = (fd_socket_t *) w;
 
+	printf("Calling receive callback\n");
 	/* receive from the socket */
 	memset(client->buffer, 0, MAX_MESSAGE_LEN);
 	fd_recv(client, client->buffer);

@@ -50,6 +50,7 @@ typedef struct _fd_socket_t {
 	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	unsigned int last_recv_opcode;
 	bool is_open;
+  int recvs;
 	int event;
 } fd_socket_t;
 
@@ -101,8 +102,8 @@ int fd_send(fd_socket_t *, char *, int opcode);
 void fd_strcat(char *, char *, int);
 int fd_recv(fd_socket_t *, char *);
 fd_socket_t *fd_socket_new(void);
-void fd_socket_destroy(fd_socket_t *sock);
-int fd_socket_close(fd_socket_t *sock);
+void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
+int fd_socket_close(fd_socket_t *);
 
 
 #endif

@@ -2,7 +2,7 @@
 #include "ev.c"
 #include "fd.h"
 
-int fd_run (int port){
+int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, flags;
 	fd_socket_t *server = malloc(sizeof(fd_socket_t));
   struct sockaddr_in servaddr;
@@ -32,6 +32,9 @@ int fd_run (int port){
 
   /* listen for sockets, taking up to LISTENQ connections */
   listen(listenfd, LISTENQ);
+
+	/* attach the accept callback to the server socket struct */
+	server->accept_cb = callback;
 
 	/* initialize our accept watcher */
 	server->tcp_sock = listenfd;
@@ -67,7 +70,12 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 
 	/* set up our client struct */
 	client = malloc(sizeof(fd_socket_t));
+	memset(client, 0, sizeof(fd_socket_t));
 	client->tcp_sock = connfd;
+
+	/* invoke the user's callback on the fresh socket, 
+	   before the handshake has begun */
+	server->accept_cb(client);
 
 	/* start the handshake when the socket is ready */
 	ev_io_init(&client->read_w, handshake_callback_r, connfd, EV_READ);
@@ -156,40 +164,8 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	/* stop waiting for a handshake write, initialize echo read */
 	ev_io_stop(loop, &client->write_w);
 
-	/* ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ); */
-	/* ev_io_start(loop, &client->io); */
 	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
 	client->recvs = 0;
 	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->read_w);
-}
-
-void client_callback_r(struct ev_loop *loop, ev_io *w, int revents){
-	fd_socket_t *client = wtos(w, read_w);
-
-	printf("Calling receive callback\n");
-	/* receive from the socket */
-	memset(client->buffer, 0, MAX_MESSAGE_LEN);
-	fd_recv(client, client->buffer);
-	
-	printf("Client %d callback received: %s\n", client->tcp_sock, client->buffer);
-
-	/* stop waiting for an echo read, initialize echo write */
-	ev_io_stop(loop, &client->read_w);
-	ev_io_init(&client->write_w, client_callback_w, client->tcp_sock, EV_WRITE);
-	ev_io_start(loop, &client->write_w);
-}
-
-void client_callback_w(struct ev_loop *loop, ev_io *w, int revents){
-	fd_socket_t *client = wtos(w, write_w);
-
-	fd_send(client, client->buffer, TEXT);
-
-	printf("Client %d callback sent: %s\n", client->tcp_sock, client->buffer);
-
-	/* stop waiting for an echo read, initialize echo write */
-	ev_io_stop(loop, &client->write_w);
-	ev_io_init(&client->read_w, client_callback_r, client->tcp_sock, EV_READ);
-	ev_io_start(loop, &client->read_w);
-
 }

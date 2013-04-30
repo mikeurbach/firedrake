@@ -43,7 +43,8 @@
 
 
 /* structs */
-typedef struct _fd_socket_t {
+typedef struct _fd_socket_t fd_socket_t;
+struct _fd_socket_t {
 	ev_io read_w;
 	ev_io write_w;
 	int	tcp_sock;
@@ -60,7 +61,9 @@ typedef struct _fd_socket_t {
   int recvs;
 	int sends;
 	int event;
-} fd_socket_t;
+	void (*accept_cb)(fd_socket_t *socket);
+	void (*data_cb)(fd_socket_t *socket, char *buffer);
+};
 
 /* enum our own custom event types */
 enum EVENT {
@@ -106,14 +109,14 @@ void fd_recv_nb(struct ev_loop *, ev_io *, int);
 void fd_send_nb(struct ev_loop *, ev_io *, int);
 
 /* firedrake function definitions */
-int fd_run(int);
-int fd_send(fd_socket_t *, char *, int opcode);
+int fd_ondata(fd_socket_t *, void(*)(char *));
+int fd_run(int, void(*)(fd_socket_t *));
+int fd_send(fd_socket_t *, char *, int);
 void fd_strcat(char *, char *, int);
 int fd_recv(fd_socket_t *, char *);
 fd_socket_t *fd_socket_new(void);
 void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
 int fd_socket_close(fd_socket_t *);
-
 
 #endif
 

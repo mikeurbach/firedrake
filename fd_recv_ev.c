@@ -237,8 +237,11 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
     /* printf("About to send with header_len: %d\n", socket->header_len); */
     //		printf("Buffer is: %s\n", socket->buffer + socket->header_len);
 
-    fd_send(socket, socket->buffer + socket->header_len, TEXT);
+    /* fd_send(socket, socket->buffer + socket->header_len, TEXT); */
 		
+    /* notify the "data available" callback that the recv is done */
+		socket->data_cb(socket, socket->buffer + socket->header_len);
+
     /* Reset data in socket struct to get ready for next recv */
     memset(socket->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
     socket->recvs = 0;
@@ -246,7 +249,5 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
     socket->bytes_received = 0;
     socket->header_len = 0;
     socket->mask_key = 0;
-
-    /* notify the "data available" callback that the recv is done */
   }
 }

@@ -35,8 +35,8 @@ int fd_run (int port){
 
 	/* initialize our accept watcher */
 	server->tcp_sock = listenfd;
-	ev_io_init(&server->io, accept_callback, listenfd, EV_READ);
-	ev_io_start(loop, &server->io);
+	ev_io_init(&server->read_w, accept_callback, listenfd, EV_READ);
+	ev_io_start(loop, &server->read_w);
 
 	/* start the loop */
 	ev_run(loop, 0);
@@ -48,7 +48,7 @@ int fd_run (int port){
 
 void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 	int connfd;
-	fd_socket_t *client, *server = (fd_socket_t *) w;
+	fd_socket_t *client, *server = wtos(w, read_w);
   struct sockaddr_in cliaddr;
   socklen_t clilen = sizeof(cliaddr);
 	
@@ -70,15 +70,15 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 	client->tcp_sock = connfd;
 
 	/* start the handshake when the socket is ready */
-	ev_io_init(&client->io, handshake_callback_r, connfd, EV_READ);
-	ev_io_start(loop, &client->io);
+	ev_io_init(&client->read_w, handshake_callback_r, connfd, EV_READ);
+	ev_io_start(loop, &client->read_w);
 }
 
 void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 	char *line, *key, *encoded, *headers, *response;
 	const unsigned char *digest;
 	int keylen, resplen;
-	fd_socket_t *client = (fd_socket_t *) w;
+	fd_socket_t *client = wtos(w, read_w);
 	
 	/* receive the initial HTTP request */
 	if(recv(client->tcp_sock, client->buffer, MAX_MESSAGE_LEN, 0) < 0){
@@ -133,13 +133,13 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 	strncpy(client->buffer, response, MAX_MESSAGE_LEN);
 
 	/* finish the handshake when the socket is ready */
-	ev_io_stop(loop, &client->io);
-	ev_io_init(&client->io, handshake_callback_w, client->tcp_sock, EV_WRITE);
-	ev_io_start(loop, &client->io);
+	ev_io_stop(loop, &client->read_w);
+	ev_io_init(&client->write_w, handshake_callback_w, client->tcp_sock, EV_WRITE);
+	ev_io_start(loop, &client->write_w);
 }
 
 void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
-	fd_socket_t *client = (fd_socket_t *) w;
+	fd_socket_t *client = wtos(w, write_w);
 
 	if(send(client->tcp_sock, client->buffer, strlen(client->buffer), 0) == -1){
 		/* since we're nonblocking, these are ok */
@@ -153,19 +153,19 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 
 	printf("Handshake completed with connection %d...\n", client->tcp_sock);
 
-	/* stop waiting for a handshake read, initialize echo read */
-	ev_io_stop(loop, &client->io);
+	/* stop waiting for a handshake write, initialize echo read */
+	ev_io_stop(loop, &client->write_w);
 
 	/* ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ); */
 	/* ev_io_start(loop, &client->io); */
 	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
 	client->recvs = 0;
-	ev_io_init(&client->io, fd_recv_nb, client->tcp_sock, EV_READ);
-	ev_io_start(loop, &client->io);
+	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);
+	ev_io_start(loop, &client->read_w);
 }
 
 void client_callback_r(struct ev_loop *loop, ev_io *w, int revents){
-	fd_socket_t *client = (fd_socket_t *) w;
+	fd_socket_t *client = wtos(w, read_w);
 
 	printf("Calling receive callback\n");
 	/* receive from the socket */
@@ -175,21 +175,21 @@ void client_callback_r(struct ev_loop *loop, ev_io *w, int revents){
 	printf("Client %d callback received: %s\n", client->tcp_sock, client->buffer);
 
 	/* stop waiting for an echo read, initialize echo write */
-	ev_io_stop(loop, &client->io);
-	ev_io_init(&client->io, client_callback_w, client->tcp_sock, EV_WRITE);
-	ev_io_start(loop, &client->io);
+	ev_io_stop(loop, &client->read_w);
+	ev_io_init(&client->write_w, client_callback_w, client->tcp_sock, EV_WRITE);
+	ev_io_start(loop, &client->write_w);
 }
 
 void client_callback_w(struct ev_loop *loop, ev_io *w, int revents){
-	fd_socket_t *client = (fd_socket_t *) w;
+	fd_socket_t *client = wtos(w, write_w);
 
 	fd_send(client, client->buffer, TEXT);
 
 	printf("Client %d callback sent: %s\n", client->tcp_sock, client->buffer);
 
 	/* stop waiting for an echo read, initialize echo write */
-	ev_io_stop(loop, &client->io);
-	ev_io_init(&client->io, client_callback_r, client->tcp_sock, EV_READ);
-	ev_io_start(loop, &client->io);
+	ev_io_stop(loop, &client->write_w);
+	ev_io_init(&client->read_w, client_callback_r, client->tcp_sock, EV_READ);
+	ev_io_start(loop, &client->read_w);
 
 }

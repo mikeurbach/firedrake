@@ -62,7 +62,7 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
   uint64_t ext_payload_len2 = 0, temp2 = 0;
   unsigned int opcode = 0;
   char byte;
-  fd_socket_t *socket = (fd_socket_t *) w;
+  fd_socket_t *socket = wtos(w, read_w);
 
   /* increment recv count */
   socket->recvs += 1;
@@ -70,10 +70,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
   /* call recv once, saving the byte count received in status */
   if((status = 
       recv(socket->tcp_sock, 
-	   socket->buffer + socket->bytes_received, 
-	   MAX_HEADER_LEN + MAX_MESSAGE_LEN - socket->bytes_received, 
-	   0)) 
-     < 0){
+					 socket->buffer + socket->bytes_received, 
+					 MAX_HEADER_LEN + MAX_MESSAGE_LEN - socket->bytes_received, 
+					 0)) < 0){
     /* since we're nonblocking, these are ok */
     if(errno != EAGAIN && errno != EWOULDBLOCK){
       perror(__FILE__);
@@ -201,10 +200,12 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
   printf("Total bytes_received: %d\n",socket->bytes_received);
   printf("Total bytes_expected: %d\n",socket->bytes_expected);
-  printf("Opcode: %d\n", opcode);
+  /* printf("Opcode: %d\n", opcode); */
 
   /* if we have received the full payload */
   if(socket->bytes_received == socket->bytes_expected){
+	  printf("Done receiving\n");
+
     /* unmask the payload */
     if(socket->mask_key){		  
       /* offset is the number of bytes needer for payload length */
@@ -233,7 +234,7 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 		
 
 
-    printf("About to send with header_len: %d\n", socket->header_len);
+    /* printf("About to send with header_len: %d\n", socket->header_len); */
     //		printf("Buffer is: %s\n", socket->buffer + socket->header_len);
 
     fd_send(socket, socket->buffer + socket->header_len, TEXT);

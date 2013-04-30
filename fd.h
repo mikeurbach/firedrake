@@ -38,19 +38,27 @@
 #define MAX_MESSAGE_LEN 100000
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
+#define wtos(w,m) \
+	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
+
 
 /* structs */
 typedef struct _fd_socket_t {
-	ev_io io;
+	ev_io read_w;
+	ev_io write_w;
 	int	tcp_sock;
 	uint64_t bytes_expected;
 	uint64_t bytes_received;
+	uint64_t bytes_outgoing;
+	uint64_t bytes_sent;
 	int header_len;
 	uint32_t mask_key;
 	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
+	char out_buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	unsigned int last_recv_opcode;
 	bool is_open;
   int recvs;
+	int sends;
 	int event;
 } fd_socket_t;
 
@@ -95,6 +103,7 @@ void handshake_callback_w(struct ev_loop *, ev_io *, int);
 void client_callback_r(struct ev_loop *, ev_io *, int);
 void client_callback_w(struct ev_loop *, ev_io *, int);
 void fd_recv_nb(struct ev_loop *, ev_io *, int);
+void fd_send_nb(struct ev_loop *, ev_io *, int);
 
 /* firedrake function definitions */
 int fd_run(int);

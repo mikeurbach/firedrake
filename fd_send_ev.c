@@ -1,109 +1,85 @@
-/* fd_send2.c by Matthew Diephuis
-
- Implement send function for firedrake websocket library
-
-
-*/
-
-/* 
-
-   send(socket, buffer){
-   
-   based on buffer, determine how to structure header
-
-   send modified buffer
-
-   return success or failure
-
-}
-
+/* fd_send_ev.c 
+ * non-blocking send function
  */
 
 #include "fd.h"
 
 int fd_send(fd_socket_t *sock, char *buff, int opcode){
+	struct ev_loop *loop = EV_DEFAULT;
   unsigned long long header, mask;
   int i = 0, skip, buf_size = strlen(buff);
-  char buff_to_send[MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1];
   char val;
   
-	// build up the header
-	memset(buff_to_send, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
-	//  printf("buff passed into fd_send: %s, size: %d\n", buff, buf_size);
+	memset(sock->out_buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
 
-  // first 4 bits (FIN, RSV1-3) are always 0 
-  // next 4 bits are opcode, we use 0x1 for text frame 
-  
+  /* first 4 bits (FIN, RSV1-3) are always 0  */
+  /* next 4 bits are opcode, we use 0x1 for text frame  */
   header = 0x81;
-
-
   
-  // Use payload length to determine payload length bits 
+  /* use payload length to determine payload length bits  */
   if (buf_size <= 125) {
-    // data length bits are just the size
-
+    /* data length bits are just the size */
     header = header | ((0x7F & buf_size) << 8);
-
 
 		/* stick the header in the buffer */
 
 		/* first byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 		
 		/* size byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 
 		skip = 2;
   } 
   else if (buf_size <= 65535){
-    // first append the data length to indicate 16 bit length coming
+    /* first append the data length to indicate 16 bit length coming */
     header = header | 0x7E00;
 
-    // represent payload size in 16 bits and add to right hand side
+    /* represent payload size in 16 bits and add to right hand side */
     header = (header) | ((0xFFFF & buf_size) << 16);
 
 		/* stick the header in the buffer */
 
 		/* first byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 		
 		/* size byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 
 		/* two bytes for message length */
 		val = (char)((header & 0xFF00) >> 8);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 
 		skip = 4;
   }
   else {
-    // first append the data length to indicate 64 bit length coming
+    /* first append the data length to indicate 64 bit length coming */
     header = header | 0x7F00;
 
-    // represent payload size in 64 bits and add to right hand side
-    // What happens with messages bigger than 64 bits? 
+    /* represent payload size in 64 bits and add to right hand side */
+    /* what happens with messages bigger than 64 bits?  */
     header = (header) | ((0x7FFFFFFFFFFFFFFF & buf_size) << 16);
 
 		/* stick the header in the buffer */
 
 		/* first byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 		
 		/* size byte */
 		val = (char)(header & 0xFF);
-		buff_to_send[i++] = val;
+		sock->out_buffer[i++] = val;
 		header = header >> 8;
 
 		/* 8 bytes for message length */
@@ -111,7 +87,7 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 		int j;
 		for(j=56;j >= 0; j = j - 8) {
 			val = (char)((header & mask) >> j);
-			buff_to_send[i++] = val;
+			sock->out_buffer[i++] = val;
 			mask = mask >> 8;
 		}
 		
@@ -119,28 +95,59 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 
   }
 
-  // Now need to turn the header bits into ASCII representation to make header string
-  // take 1 byte at a time (2 hex characters) and get ASCII value, prepend to header_str
-  /* int i = 0; */
+  /* prepend header to buffer */
+  fd_strcat(sock->out_buffer, buff, skip);
+  /* printf("buff_to_send: %s\n",buff_to_send);  */
 
-  /* memset(header_str,0,strlen(header_str)); */
-	/* while(header > 0){ */
-  /*   /\* sprintf(val,%u,header & 0xFF); *\/ */
-  /*   val = (char)(header & 0xFF); */
-  /*   header_str[i++] = val; */
-  /*   /\* strcat((char*)val,header_str); *\/ */
-  /*   header = header >> 8; */
-  /* } */
+	sock->bytes_outgoing = strlen(buff) + skip;
+	sock->bytes_sent = 0;
+	sock->sends = 0;
+	ev_io_init(&sock->write_w, fd_send_nb, sock->tcp_sock, EV_WRITE);
+	ev_io_start(loop, &sock->write_w);
 
-  /* header_str = strrev(header_str); */
+  return 0;
+}
 
-  // prepend header to buffer
-  fd_strcat(buff_to_send, buff, skip);
-  //  printf("buff_to_send: %s\n",buff_to_send); 
+void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
+	int status;
+	fd_socket_t *socket = wtos(w, write_w);
 
-  // send the buffer with the correct header to socket
+	/* call send once, saving the number of bytes sent */
+	if(socket->bytes_sent < socket->bytes_outgoing){
+		if((status = 
+				send(socket->tcp_sock, 
+						 socket->out_buffer + socket->bytes_sent, 
+						 socket->bytes_outgoing,
+						 0)) < 0){
+			/* since we're nonblocking, these are ok */
+			if(errno != EAGAIN && errno != EWOULDBLOCK){
+				perror(__FILE__);
+				exit(errno);
+			}
+			printf("fd_send_nb invoked, but send returned EAGAIN or EWOULDBLOCK\n");
+		}
+		
+		socket->bytes_sent += status;
+		++socket->sends;
+		printf("Bytes sent in call #%d: %d\n" 
+					 "Total bytes_sent: %d\n"
+					 "Total bytes_outgoing: %d\n",
+					 socket->sends, status, 
+					 socket->bytes_sent, socket->bytes_outgoing);
+	}
 
-  return send(sock->tcp_sock, buff_to_send, skip + strlen(buff),0);
+	/* once we've sent everything */
+	if(socket->bytes_sent == socket->bytes_outgoing){
+		/* unplug from the event loop */
+		ev_io_stop(loop, &socket->write_w);
+		
+		printf("Done sending\n");
+
+		memset(socket->out_buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+		socket->bytes_outgoing = 0;
+		socket->bytes_sent = 0;
+		socket->sends = 0;
+	}
 }
 
 void fd_strcat(char *output, char *buff, int skip) {

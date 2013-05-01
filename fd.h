@@ -41,12 +41,12 @@
 #define wtos(w,m) \
 	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
 
-
 /* structs */
 typedef struct _fd_socket_t fd_socket_t;
 struct _fd_socket_t {
 	ev_io read_w;
 	ev_io write_w;
+	ev_io channel_w;
 	int	tcp_sock;
 	uint64_t bytes_expected;
 	uint64_t bytes_received;
@@ -63,6 +63,29 @@ struct _fd_socket_t {
 	int event;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
+};
+
+typedef struct _fd_channel_watcher *fd_channel_watcher;
+struct _fd_channel_watcher {
+	ev_io w;
+	int tcp_sock;
+	int msg_type;
+	char buffer[MAX_MESSAGE_LEN];
+	void (*callback)(fd_socket_t *socket, char *buffer, int msg_type);
+};
+
+typedef struct _fd_channel_node *fd_channel_node;
+struct _fd_channel_node {
+	char *key;
+	int fd;
+	struct sockaddr_un addr;
+	fd_channel_node next;
+};
+
+typedef struct _fd_channel_hash *fd_channel_hash;
+struct _fd_channel_hash {
+	int size;
+	fd_channel_node *table;
 };
 
 /* enum our own custom event types */

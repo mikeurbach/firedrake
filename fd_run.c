@@ -9,7 +9,7 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	struct ev_loop *loop = EV_DEFAULT;
 
 	/* call socket to get a file descriptor */
-  if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) <0){
+  if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
     perror(__FILE__);
     exit(errno);
   }

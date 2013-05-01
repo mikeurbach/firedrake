@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -38,7 +38,7 @@
 #define MAX_MESSAGE_LEN 100000
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
-#define wtos(w,m) \
+#define wtos(w,m) 
 	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
 
 
@@ -63,7 +63,24 @@ struct _fd_socket_t {
 	int event;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
+  fd_channel_watcher *channel_list;
 };
+
+/* struct used for a socket to listen on a channel */
+typedef struct _fd_channel_watcher fd_channel_watcher;
+struct _fd_channel_watcher {
+  ev_io w;
+  fd_socket_t *fd_socket; 
+  char *channel_key;
+  void (*read_channel_cb)(int fd_channel, char *buffer);
+  char buffer[MAX_MESSAGE_LEN];
+  int fd;
+  uint64_t bytes_completed;
+  uint64_t bytes_total;
+  int calls;
+  struct sockaddr_un addr;
+  fd_channel_watcher *next;
+}
 
 /* enum our own custom event types */
 enum EVENT {

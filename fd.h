@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -38,7 +38,7 @@
 #define MAX_MESSAGE_LEN 100000
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
-#define wtos(w,m) \
+#define wtos(w,m) 
 	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
 
 /* structs */
@@ -46,7 +46,6 @@ typedef struct _fd_socket_t fd_socket_t;
 struct _fd_socket_t {
 	ev_io read_w;
 	ev_io write_w;
-	ev_io channel_w;
 	int	tcp_sock;
 	uint64_t bytes_expected;
 	uint64_t bytes_received;
@@ -63,22 +62,23 @@ struct _fd_socket_t {
 	int event;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
+  fd_channel_watcher *channel_list;
 };
 
 typedef struct _fd_channel_watcher *fd_channel_watcher;
 struct _fd_channel_watcher {
 	ev_io w;
+	fd_socket_t *socket;
 	int tcp_sock;
 	int msg_type;
 	char buffer[MAX_MESSAGE_LEN];
-	void (*callback)(fd_socket_t *socket, char *buffer, int msg_type);
+	void (*cb)(fd_socket_t *socket, char *buffer, int msg_type);
+	fd_channel_watcher next;
 };
 
 typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
-	char *key;
-	int fd;
-	struct sockaddr_un addr;
+	fd_channel_watcher watchers;
 	fd_channel_node next;
 };
 
@@ -87,6 +87,22 @@ struct _fd_channel_hash {
 	int size;
 	fd_channel_node *table;
 };
+
+/* /\* struct used for a socket to listen on a channel *\/ */
+/* typedef struct _fd_channel_watcher fd_channel_watcher; */
+/* struct _fd_channel_watcher { */
+/*   ev_io w; */
+/*   fd_socket_t *fd_socket;  */
+/*   char *channel_key; */
+/*   void (*read_channel_cb)(int fd_channel, char *buffer); */
+/*   char buffer[MAX_MESSAGE_LEN]; */
+/*   int fd; */
+/*   uint64_t bytes_completed; */
+/*   uint64_t bytes_total; */
+/*   int calls; */
+/*   struct sockaddr_un addr; */
+/*   fd_channel_watcher *next; */
+/* } */
 
 /* enum our own custom event types */
 enum EVENT {

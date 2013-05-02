@@ -3,7 +3,7 @@
 #include "fd.h"
 
 int fd_run (int port, void(*callback)(fd_socket_t *socket)){
-  int listenfd, flags;
+  int listenfd, optval, flags;
 	fd_socket_t *server = malloc(sizeof(fd_socket_t));
   struct sockaddr_in servaddr;
 	struct ev_loop *loop = EV_DEFAULT;
@@ -18,6 +18,14 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	flags = fcntl(listenfd, F_GETFL);
 	flags |= O_NONBLOCK;
 	if(fcntl(listenfd, F_SETFL, flags)){
+		perror(__FILE__);
+		exit(errno);
+	}
+
+	/* make the socket reuse the address */
+	optval = 1;
+	if(setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, 
+								&optval, sizeof(optval)) < 0){
 		perror(__FILE__);
 		exit(errno);
 	}
@@ -40,6 +48,10 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	server->tcp_sock = listenfd;
 	ev_io_init(&server->read_w, accept_callback, listenfd, EV_READ);
 	ev_io_start(loop, &server->read_w);
+
+	/* check if the hashtable has been initialzed yet */
+	if(hashtable == NULL)
+		hashtable = init_channels(HASH_SIZE);
 
 	/* start the loop */
 	ev_run(loop, 0);

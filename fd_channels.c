@@ -3,48 +3,44 @@
 /* create and return a blank hash table, given a size */
 fd_channel_hash init_channels(int size){
 	fd_channel_hash hashtable = malloc(sizeof(struct _fd_channel_hash));
-	fd_channel_node table = calloc(size, sizeof(struct _fd_channel_node));
+	fd_channel_node *table = 
+		(fd_channel_node *) calloc(size, sizeof(struct _fd_channel_node));
 	hashtable->size = size;
 	hashtable->table = table;
 	return hashtable;
 }
 
-fd_channel_node lookup_channel(fd_channel_hash hashtable, char *key){
-	int slot = hash(key, hashtable->size);
+fd_channel_node lookup_channel(char *key){
+	int slot; 
 	fd_channel_node node;
+
+	/* check if hashtable has been initialized yet */
+	if(hashtable == NULL)
+		hashtable = init_channels(HASH_SIZE);
+
+	slot = hash(key, hashtable->size);
 
 	/* look through the nodes at this slot */
 	for(node = hashtable->table[slot];
-			node != NULL && !strcmp(node->key, key);
+			node != NULL && strcmp(node->key, key);
 			node = node->next)
 		;
 
 	return node;
 }
 
-fd_channel_node create_channel(fd_channel_hash hashtable, char *key){
-	int fd, flags, slot = hash(key, hashtable->size);
-	fd_channel_node node = lookup_channel(hashtable, key);
-	
+fd_channel_node create_channel(char *key){
+	int slot;
+	fd_channel_node node = lookup_channel(key);
+
+	slot = hash(key, hashtable->size);
+
 	/* only create a channel if it doesn't already exist */
 	if(node == NULL){
-		/* create a local socket for this channel */
-		if((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0){
-			perror(__FILE__);
-			return NULL;
-		}
-		
-		/* call fcntl to set it non blocking */
-		flags = fcntl(fd, F_GETFL);
-		flags |= O_NONBLOCK;
-		if(fcntl(fd, F_SETFL, flags)){
-			perror(__FILE__);
-			return NULL;
-		}
-
 		/* set up this channel's node */
 		node = malloc(sizeof(struct _fd_channel_node));
 		memset(node, 0, sizeof(struct _fd_channel_node));
+		node->key = strdup(key);
 
 		/* put it in the hash table */
 		node->next = hashtable->table[slot];
@@ -55,33 +51,38 @@ fd_channel_node create_channel(fd_channel_hash hashtable, char *key){
 }
 
 /* broadcast a message to a channel */
-int fd_broadcast(fd_channel_hash hashtable, char *key, char *buffer, 
+int fd_broadcast(fd_socket_t *socket, char *key, char *buffer, 
 								 int msg_type){
 	int counter;
-	fd_channel_node channel = lookup_channel(hashtable, key);
+	fd_channel_node channel = lookup_channel(key);
 	fd_channel_watcher node;
 	struct ev_loop *loop = EV_DEFAULT;
 
 	for(counter = 0, node = channel->watchers; node != NULL; 
 			counter++, node = node->next){
-		fd_strcat(node->buffer, buffer, 0);
-		node->msg_type = msg_type;
-		ev_feed_fd_event(loop, node->tcp_sock, EV_CUSTOM);
+		if(node->socket != socket){
+			fd_strcat(node->buffer, buffer, 0);
+			node->msg_type = msg_type;
+			ev_feed_event(loop, &node->w, EV_CUSTOM);
+		}
 	}
+
+	return counter;
 }
 
 /* callback to invoke when there is a message to the channel */
-void fd_channel_listener(ev_loop *loop, ev_io *w, int revents){
-	fd_channel_watcher *watcher = (fd_channel_watcher *) w;
-	watcher->cb(watcher->socket, watcher->buffer, watcher->msg_type);
+void fd_channel_listener(struct ev_loop *loop, ev_io *w, int revents){
+	if(revents & EV_CUSTOM){
+		fd_channel_watcher watcher = (fd_channel_watcher) w;
+		watcher->cb(watcher->socket, watcher->buffer, watcher->msg_type);
+	}
 }
 
-void fd_join_channel(fd_channel_hash hashtable, fd_socket_t *socket, 
-										 char *key, void (*cb)(fd_socket_t *, char *, int)){
+void fd_join_channel(fd_socket_t *socket, char *key, 
+										 void (*cb)(fd_socket_t *, char *, int)){
 	struct ev_loop *loop = EV_DEFAULT;
-	fd_channel_node channel = lookup_channel(hashtable, key);
-	fd_channel_watcher node,
-		watcher = malloc(sizeof(struct _fd_channel_watcher));
+	fd_channel_node channel = lookup_channel(key);
+	fd_channel_watcher watcher = malloc(sizeof(struct _fd_channel_watcher));
 	
 	/* initialize the watcher */
 	watcher->socket = socket;
@@ -92,11 +93,10 @@ void fd_join_channel(fd_channel_hash hashtable, fd_socket_t *socket,
 	
 	/* add the watcher to the channel's list of watchers */
 	watcher->next = channel->watchers;
-	channel->watchers-> watcher;
+	channel->watchers = watcher;
 
 	/* bind the watcher to EV_CUSTOM events */
-	ev_io_init(&watcher->w, fd_channel_listener, watcher->tcp_sock, 
-						 EV_CUSTOM);
+	ev_io_init(&watcher->w, fd_channel_listener, watcher->tcp_sock, EV_READ);
 	ev_io_start(loop, &watcher->w);
 }
 
@@ -184,7 +184,7 @@ void fd_join_channel(fd_channel_hash hashtable, fd_socket_t *socket,
 /* } */
 
 /* Peter Weinberger's hash function, from the dragon book */
-static int hash(char *s, int size){
+int hash(char *s, int size){
 	unsigned h = 0, g;
   char *p;
 

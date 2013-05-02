@@ -38,8 +38,7 @@
 #define MAX_MESSAGE_LEN 100000
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
-#define wtos(w,m) 
-	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
+#define HASH_SIZE 256
 
 /* structs */
 typedef struct _fd_socket_t fd_socket_t;
@@ -62,7 +61,6 @@ struct _fd_socket_t {
 	int event;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
-  fd_channel_watcher *channel_list;
 };
 
 typedef struct _fd_channel_watcher *fd_channel_watcher;
@@ -79,6 +77,7 @@ struct _fd_channel_watcher {
 typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
 	fd_channel_watcher watchers;
+	char *key;
 	fd_channel_node next;
 };
 
@@ -131,6 +130,13 @@ enum OPCODE {
 	OPEN,
 };
 
+/* macros */
+#define wtos(w,m)																						\
+	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
+
+/* global variables */
+fd_channel_hash hashtable;
+
 /* handshaking function definitions */
 int handshake(int);
 char *base64_encode(const unsigned char *, size_t, size_t *);
@@ -146,6 +152,16 @@ void client_callback_r(struct ev_loop *, ev_io *, int);
 void client_callback_w(struct ev_loop *, ev_io *, int);
 void fd_recv_nb(struct ev_loop *, ev_io *, int);
 void fd_send_nb(struct ev_loop *, ev_io *, int);
+
+/* channel function definitions */
+fd_channel_hash init_channels(int );
+fd_channel_node lookup_channel(char *);
+fd_channel_node create_channel(char *);
+int fd_broadcast(fd_socket_t *, char *, char *, int);
+void fd_channel_listener(struct ev_loop *, ev_io *, int);
+void fd_join_channel(fd_socket_t *, char *, 
+										 void (*cb)(fd_socket_t *, char *, int));
+int hash(char *s, int size);
 
 /* firedrake function definitions */
 int fd_ondata(fd_socket_t *, void(*)(char *));

@@ -132,8 +132,7 @@
 			connection = new WebSocket('ws://localhost:8080');
 
 			connection.onopen = function(event) {
-			connection.send('connected');
-			console.log('sent: connected');
+			console.log('connected');
 			}
 
 			connection.onerror = function(event) {

@@ -112,6 +112,8 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 	int status;
 	fd_socket_t *socket = wtos(w, write_w);
 
+	assert_event(EV_WRITE);
+
 	/* call send once, saving the number of bytes sent */
 	if(socket->bytes_sent < socket->bytes_outgoing){
 		if((status = 

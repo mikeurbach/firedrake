@@ -69,7 +69,7 @@ struct _fd_channel_watcher {
 	fd_socket_t *socket;
 	int tcp_sock;
 	int msg_type;
-	char buffer[MAX_MESSAGE_LEN];
+	char *buffer;
 	void (*cb)(fd_socket_t *socket, char *buffer, int msg_type);
 	fd_channel_watcher next;
 };
@@ -78,6 +78,7 @@ typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
 	fd_channel_watcher watchers;
 	char *key;
+	char buffer[MAX_MESSAGE_LEN];
 	fd_channel_node next;
 };
 
@@ -86,22 +87,6 @@ struct _fd_channel_hash {
 	int size;
 	fd_channel_node *table;
 };
-
-/* /\* struct used for a socket to listen on a channel *\/ */
-/* typedef struct _fd_channel_watcher fd_channel_watcher; */
-/* struct _fd_channel_watcher { */
-/*   ev_io w; */
-/*   fd_socket_t *fd_socket;  */
-/*   char *channel_key; */
-/*   void (*read_channel_cb)(int fd_channel, char *buffer); */
-/*   char buffer[MAX_MESSAGE_LEN]; */
-/*   int fd; */
-/*   uint64_t bytes_completed; */
-/*   uint64_t bytes_total; */
-/*   int calls; */
-/*   struct sockaddr_un addr; */
-/*   fd_channel_watcher *next; */
-/* } */
 
 /* enum our own custom event types */
 enum EVENT {
@@ -133,6 +118,10 @@ enum OPCODE {
 /* macros */
 #define wtos(w,m)																						\
 	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
+#define assert_event(e)												\
+	if(!(revents & e))													\
+		return
+
 
 /* global variables */
 fd_channel_hash hashtable;

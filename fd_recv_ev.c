@@ -64,6 +64,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
   char byte;
   fd_socket_t *socket = wtos(w, read_w);
 
+	assert_event(EV_READ);
+
   /* increment recv count */
   socket->recvs += 1;
 

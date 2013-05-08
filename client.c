@@ -5,12 +5,15 @@ int fd_client_send(int sockfd, char *buff, int opcode);
 static void mask_payload(char* data, int len, uint32_t key);
 int fd_client_recv(int sockfd, char *buff);
 int fd_client_handshake(int sockfd);
+static void print_menu();
+static int get_user_string(char *buffer);
 
 int main (int argc, char **argv){
   int port, sockfd;
   socklen_t serverlen;
   struct sockaddr_in servaddr;
   char buffer[MAX_MESSAGE_LEN];
+  char choice;
 
   /* read the port from the command line */
   if(argc != 2){
@@ -41,7 +44,7 @@ int main (int argc, char **argv){
   /* Handshake */
   fd_client_handshake(sockfd);
 
-  /* continually send entered text */
+  /* continually send entered text 
   while (fgets(buffer, MAX_MESSAGE_LEN, stdin) != NULL){
 
     printf("Sending: %s\n", buffer);
@@ -49,7 +52,56 @@ int main (int argc, char **argv){
 
     fd_client_recv(sockfd, buffer);
     printf("Received: %s\n", buffer);
+  }*/
+
+  print_menu();
+
+  while( (choice = fgetc(stdin) ) != EOF){
+    
+    memset(buffer, 0, MAX_MESSAGE_LEN);
+
+    fflush(stdin);
+
+    switch (choice){
+
+      case '0': close(sockfd);
+              return(EXIT_SUCCESS);
+              break;
+
+      /*case '1': fgets(buffer, MAX_MESSAGE_LEN, stdin);
+              fd_client_send(sockfd, buffer, CONTINUATION);
+              fgets(buffer, MAX_MESSAGE_LEN, stdin);
+              fd_client_send(sockfd, buffer, CONTINUATION);
+              break;*/
+
+      case '2': printf("\nEnter the text string you wish to send: ");
+              get_user_string(buffer);
+              fd_client_send(sockfd, buffer, TEXT);
+              fd_client_recv(sockfd, buffer);
+              printf("\nReceived: %s\n\n", buffer);
+              break;
+
+      case '3': printf("\nEnter the binary string you wish to send: ");
+              get_user_string(buffer);
+              fd_client_send(sockfd, buffer, BINARY);
+              fd_client_recv(sockfd, buffer);
+              printf("\nReceived: %s\n\n", buffer);
+              break;
+
+      case '4': fd_client_send(sockfd, NULL, CONNECTION_CLOSE);
+              break;
+
+      case '5': fd_client_send(sockfd, NULL, PING);
+              break;
+
+      case '6': fd_client_send(sockfd, NULL, PONG);
+              break;
+
+    }
+
+    print_menu();
   }
+
 }
 
 
@@ -95,6 +147,16 @@ int fd_client_handshake(int sockfd){
   printf("Receiceved the handshake.\n");
 
   return 0;
+}
+
+static int get_user_string(char *buffer){
+  int received = 0;
+
+  fgets(buffer, MAX_MESSAGE_LEN, stdin);
+
+  fflush(stdin);
+
+  return(received);
 }
 
 
@@ -361,7 +423,7 @@ int fd_client_recv(int sockfd, char *buff){
 	  final_payload_len = ext_payload_len2;
 	}
 
-	printf("fd_client_recv: final_payload_len is %d\n", final_payload_len);
+	//printf("fd_client_recv: final_payload_len is %d\n", final_payload_len);
 
 
 //Parse Masking key (0 or 4 bytes) All frames from client to server are masked by this value
@@ -391,7 +453,7 @@ int fd_client_recv(int sockfd, char *buff){
  		mask_payload(buff, final_payload_len, mask_key);
 	}
 
-	printf("fd_client_recv: unmasked data is \"%s\"\n", buff);
+	//printf("fd_client_recv: unmasked data is \"%s\"\n", buff);
 
 	if(opcode == PING){
 		//send a pong
@@ -407,4 +469,14 @@ int fd_client_recv(int sockfd, char *buff){
 	}
 
 	return (status);
+}
+
+static void print_menu(){
+  printf("[0] Quit the client.\n");
+  printf("[1] Send a continuation frame.\n");
+  printf("[2] Send a text frame.\n");
+  printf("[3] Send a binary frame.\n");
+  printf("[4] Send a connection close frame.\n");
+  printf("[5] Send a ping frame.\n");
+  printf("[6] Send a pong frame.\n");
 }

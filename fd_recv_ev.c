@@ -112,6 +112,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
       is_masked = (temp & 0x80) >> 7;
       payload_len = temp & 0x7F;
 
+      printf("Server: Is masked val: %d\n",is_masked);
+
       /* assign the header_len on the socket */
       if(is_masked){
 	if(payload_len < PAYLOAD_EXT_16)

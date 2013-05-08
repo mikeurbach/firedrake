@@ -23,6 +23,9 @@ ev: obj_ev
 legacy: obj_legacy
 	$(CC) $(CFLAGS) -o server server.o fd_send.o base64.o fd_recv.o -lpthread -lssl -lcrypto
 
+client: 
+	$(CC) $(CFLAGS) client.c base64.c -o client -lcrypto
+
 clean:
-	rm -f server *.o
+	rm -f server client *.o
 	rm -f *~ *#

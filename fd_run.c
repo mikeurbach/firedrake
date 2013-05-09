@@ -6,7 +6,8 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, optval, flags;
 	fd_socket_t *server = malloc(sizeof(fd_socket_t));
   struct sockaddr_in servaddr;
-	struct ev_loop *loop = EV_DEFAULT;
+  struct ev_loop *loop = EV_DEFAULT;
+  ev_signal sigint_w;
 
 	/* call socket to get a file descriptor */
   if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -53,12 +54,31 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	if(hashtable == NULL)
 		hashtable = init_channels(HASH_SIZE);
 
+	
+	/* Initialive watcher to catch SIGINT to close gracefully */
+	ev_signal_init(&sigint_w, fd_close, SIGINT);
+	ev_signal_start(loop, &sigint_w);
+
+	printf("Event loop started, waiting for connections...\n");
 	/* start the loop */
 	ev_run(loop, 0);
 
-  printf("Event loop started, waiting for connections...\n");
+
 
 	return 0;
+}
+
+/* close gracefully */
+void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
+
+  /* close all channels */
+  printf("Closing gracefully\n");
+
+  /* close all open sockets */
+
+
+  /* end the event loop */
+  ev_break(loop, EVBREAK_ALL);
 }
 
 void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
@@ -152,6 +172,9 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 	/* store the response in the client struct's buffer */
 	strncpy(client->buffer, response, MAX_MESSAGE_LEN);
 
+	free(response);
+	free(key);
+
 	/* finish the handshake when the socket is ready */
 	ev_io_stop(loop, &client->read_w);
 	ev_io_init(&client->write_w, handshake_callback_w, client->tcp_sock, EV_WRITE);
@@ -176,6 +199,7 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	/* stop waiting for a handshake write, initialize echo read */
 	ev_io_stop(loop, &client->write_w);
 
+	client->just_opened = 1;
 	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
 	client->recvs = 0;
 	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);

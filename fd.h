@@ -8,7 +8,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -56,6 +55,7 @@ struct _fd_socket_t {
 	char out_buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	unsigned int last_recv_opcode;
 	bool is_open;
+  int just_opened;
   int recvs;
 	int sends;
 	int event;
@@ -161,6 +161,7 @@ int fd_recv(fd_socket_t *, char *);
 fd_socket_t *fd_socket_new(void);
 void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
 int fd_socket_close(fd_socket_t *);
+void fd_close(struct ev_loop *, ev_signal *, int);
 
 #endif
 

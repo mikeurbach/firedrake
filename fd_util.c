@@ -13,7 +13,7 @@ fd_socket_t *fd_socket_new(void){
 }
 
 void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
-	ev_io_stop(loop, &sock->io);
+	ev_io_stop(loop, &sock->read_w);
 	fd_socket_close(sock);
 	free(sock);
 
@@ -21,7 +21,9 @@ void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
 
 int fd_socket_close(fd_socket_t *sock){
 
-	sock->is_open = false;
-	return ( close(sock->tcp_sock) );
+  printf("Closing socket #: %d\n",sock->tcp_sock);
+  remove_from_channel("chatroom", sock->tcp_sock);
+  sock->is_open = false;
+  return ( close(sock->tcp_sock) );
 
 }

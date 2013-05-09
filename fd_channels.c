@@ -50,6 +50,65 @@ fd_channel_node create_channel(char *key){
 	return node;
 }
 
+/* remove a socket from channel given a channel name and socket id */
+void remove_from_channel(char *key, int sock){
+  int slot;
+  fd_channel_node node = lookup_channel(key);
+  fd_channel_watcher current, prev;
+  struct ev_loop *loop = EV_DEFAULT;
+
+  if (node != NULL){
+    current = node->watchers;
+    prev = NULL;
+
+    /* Find the channel watcher matching the given socket id */
+    for(current; 
+	current != NULL && current->socket->tcp_sock != sock;  
+	current = current->next)
+      prev = current;
+    
+
+    if (current == NULL) {
+      printf("Socket with sockid %d was not found in channel with name: %s\n", sock, key);
+    }
+
+    /* remove watcher from list of watchers in channel */
+    else {
+      printf("Removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
+      if (prev == NULL) {
+	node->watchers = current->next;
+      }
+      else {
+	prev->next = current->next;
+      }
+      ev_io_stop(loop, &current->w);
+      free(current);
+    }
+  }
+  else
+    printf("Node for channel with name %s was null\n", key);
+}
+
+
+
+void close_channel(char *key){
+  int slot;
+  fd_channel_node node = lookup_channel(key);
+
+  slot = hash(key, hashtable->size);
+
+  if (node == NULL){
+    printf("The node you are attempting to delete does not exist.\n");
+    return;
+  }
+  else {
+    
+  } 
+
+}
+
+
+
 /* broadcast a message to a channel */
 int fd_broadcast(fd_socket_t *socket, char *key, char *buffer, 
 								 int msg_type){

@@ -40,6 +40,9 @@ void ondata(fd_socket_t *socket, char *buffer){
 
 	/* broadcast your message to the channel */
 	fd_broadcast(socket, "chatroom", buffer, TEXT);
+
+	/* echo server */
+	//fd_send(socket,buffer,TEXT);
 }
 
 void onchannel(fd_socket_t *socket, char *buffer, int msg_type){

@@ -124,7 +124,7 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 			/* since we're nonblocking, these are ok */
 			if(errno != EAGAIN && errno != EWOULDBLOCK){
 				perror(__FILE__);
-				exit(errno);
+				return;
 			}
 			printf("fd_send_nb invoked, but send returned EAGAIN or EWOULDBLOCK\n");
 		}

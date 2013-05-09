@@ -84,6 +84,19 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
     return;
   }
 
+
+  //  printf("fd_recv_nb: socket->just_opened = %d\n", socket->just_opened);
+  /* If status == 0, socket has recevied a close signal so we close the socket*/
+  //  if (socket->just_opened == 0 && status == 0) { 
+  if (status == 0) {
+    fd_socket_destroy(socket, loop);
+    return;
+
+  }
+
+  socket->just_opened = 0;
+
+
   printf("Bytes received in call #%d: %d\n",socket->recvs, status);
   /* update the number of received bytes on the socket */
   socket->bytes_received += status;

@@ -5,7 +5,7 @@
 #include "fd.h"
 
 int fd_send(fd_socket_t *sock, char *buff, int opcode){
-	struct ev_loop *loop = EV_DEFAULT;
+  struct ev_loop *loop = EV_DEFAULT;
   unsigned long long header, mask;
   int i = 0, skip, buf_size = strlen(buff);
   char val;
@@ -126,16 +126,24 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 				perror(__FILE__);
 				return;
 			}
-			printf("fd_send_nb invoked, but send returned EAGAIN or EWOULDBLOCK\n");
+			
+			log_file = fopen(LOG_FILE, "a");
+			fprintf(log_file, "ERROR in fd_send_nb: send invoked, but returned EAGAIN or EWOULDBLOCK\n");
+			fclose(log_file);
 		}
 		
 		socket->bytes_sent += status;
 		++socket->sends;
-		printf("Bytes sent in call #%d: %d\n" 
-					 "Total bytes_sent: %d\n"
-					 "Total bytes_outgoing: %d\n",
+		
+		log_file = fopen(LOG_FILE, "a");
+		fprintf(log_file, "MESSAGE in fd_send_nb: bytes sent in call #%d: %d\n" 
+					 "	Total bytes_sent: %d\n"
+					 "	Total bytes_outgoing: %d\n",
 					 socket->sends, status, 
-					 socket->bytes_sent, socket->bytes_outgoing);
+					 (int) socket->bytes_sent, (int) socket->bytes_outgoing);
+		fclose(log_file);
+		
+
 	}
 
 	/* once we've sent everything */
@@ -143,7 +151,9 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 		/* unplug from the event loop */
 		ev_io_stop(loop, &socket->write_w);
 		
-		printf("Done sending\n");
+		log_file = fopen(LOG_FILE, "a");
+		fprintf(log_file, "MESSAGE in fd_send_nb: done sending\n");
+		fclose(log_file);
 
 		memset(socket->out_buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
 		socket->bytes_outgoing = 0;

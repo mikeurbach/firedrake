@@ -84,7 +84,12 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
       perror(__FILE__);
       exit(errno);
     }
-    printf("fd_recv_nb invoked, but recv returned EAGAIN or EWOULDBLOCK\n");
+    
+    log_file = fopen(LOG_FILE, "a");
+    fprintf(log_file, "ERROR in fd_recv_nb: recv invoked, but returned EAGAIN or EWOULDBLOCK\n");
+    fclose(log_file);
+    
+
     return;
   }
 
@@ -98,8 +103,11 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
   }
 
   socket->just_opened = 0;
+  
+  log_file = fopen(LOG_FILE, "a");
+  fprintf(log_file, "MESSAGE in fd_recv_nb: bytes received in call #%d: %d\n",socket->recvs, status);
+  fclose(log_file);
 
-  printf("Bytes received in call #%d: %d\n",socket->recvs, status);
   /* update the number of received bytes on the socket */
   socket->bytes_received += status;
 
@@ -127,7 +135,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
       is_masked = (temp & 0x80) >> 7;
       payload_len = temp & 0x7F;
 
-      printf("Server: Is masked val: %d\n",is_masked);
+      log_file = fopen(LOG_FILE, "a");
+      fprintf(log_file, "MESSAGE in fd_recv_nb: is_masked val: %d\n",is_masked);
+      fclose(log_file);
 
 			/* save the opcode and fin bit */
 			socket->fin = fin;
@@ -141,21 +151,27 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 					socket->header_len = 8;
 				else if(payload_len == PAYLOAD_EXT_64)
 					socket->header_len = 14;
-				else
+				else{
 					/* what the hell is going on if we're here? */
-					printf("%s: unknown payload length\n", __FILE__);
-      } else {
+					log_file = fopen(LOG_FILE, "a");
+					fprintf(log_file, "ERROR in %s: unknown payload length\n", __FILE__);
+					fclose(log_file);		
+				} 
+      } else{
 				/* why would it not be masked? 
-					 i guess we should still do this */
+					 I guess we should still do this */
 				if(payload_len < PAYLOAD_EXT_16)
 					socket->header_len = 2;
 				else if(payload_len == PAYLOAD_EXT_16)
 					socket->header_len = 4;
 				else if(payload_len == PAYLOAD_EXT_64)
 					socket->header_len = 10;
-				else
+				else{
 					/* what the hell is going on if we're here? */
-					printf("%s: unknown payload length\n", __FILE__);
+					log_file = fopen(LOG_FILE, "a");
+					fprintf(log_file, "ERROR in %s: unknown payload length\n", __FILE__);
+					fclose(log_file);		
+				}
       }
     }
 		
@@ -225,16 +241,20 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
   }
 
 
-  printf("Total bytes_received: %d\n",socket->bytes_received);
-  printf("Total bytes_expected: %d\n",socket->bytes_expected);
-  printf("Opcode: %x\n", socket->opcode);
-	printf("Fin bit: %d\n", socket->fin);
+  log_file = fopen(LOG_FILE, "a");
+  fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_received: %d\n",(int) socket->bytes_received);
+  fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_expected: %d\n",(int) socket->bytes_expected);
+  fclose(log_file);		
+      
 
-  /* if we have received the full payload, or the buffer is full */
+  /* if we have received the full payload */
   if(socket->bytes_received == socket->bytes_expected ||
 		 socket->bytes_received == MAX_HEADER_LEN + MAX_MESSAGE_LEN){
-	  printf("Done receiving\n");
-
+	  
+	  log_file = fopen(LOG_FILE, "a");
+	  fprintf(log_file, "MESSAGE in fd_recv_nb: done receiving\n");
+	  fclose(log_file);	
+ 
     /* unmask the payload */
     if(socket->mask_key){		  
 			/* save where the unmasking stopped, in the case of a
@@ -265,7 +285,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 			break;
 		case CONNECTION_CLOSE:
       /* send a matching CLOSE message and close the socket gracefully */
-      printf("Close message received\n");
+  	  log_file = fopen(LOG_FILE, "a");
+  	  fprintf(log_file, "MESSAGE in fd_recv_nb: close message received\n");
+  	  fclose(log_file);
       status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
       fd_socket_destroy(socket, loop);
 			break;

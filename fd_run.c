@@ -4,7 +4,7 @@
 
 int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, optval, flags;
-	fd_socket_t *server = malloc(sizeof(fd_socket_t));
+  fd_socket_t *server = malloc(sizeof(fd_socket_t));
   struct sockaddr_in servaddr;
   struct ev_loop *loop = EV_DEFAULT;
   ev_signal sigint_w;
@@ -59,7 +59,10 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	ev_signal_init(&sigint_w, fd_close, SIGINT);
 	ev_signal_start(loop, &sigint_w);
 
-	printf("Event loop started, waiting for connections...\n");
+	log_file = fopen(LOG_FILE, "a");
+	fprintf(log_file, "MESSAGE in fd_run(): Event loop started, waiting for connections...\n");
+	fclose(log_file);
+	
 	/* start the loop */
 	ev_run(loop, 0);
 
@@ -72,7 +75,9 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 
   /* close all channels */
-  printf("Closing gracefully\n");
+  log_file = fopen(LOG_FILE, "a");
+  fprintf(log_file, "MESSAGE in fd_close(): Closing gracefully\n");
+  fclose(log_file);
 
   /* close all open sockets */
 
@@ -94,11 +99,19 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("accept_callback invoked, but accept returned EAGAIN or EWOULDBLOCK\n");
+		
+		log_file = fopen(LOG_FILE, "a");
+		fprintf(log_file, "ERROR in accept_callback(): callback invoked, but accept returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+		fclose(log_file);
+
 		return;
 	}
 
-	printf("Connection %d accepted...\n", connfd);
+	log_file = fopen(LOG_FILE, "a");
+	fprintf(log_file, "MESSAGE in accept_callback(): Connection %d accepted...\n", connfd);
+	fclose(log_file);
+	
+
 
 	/* set up our client struct */
 	client = malloc(sizeof(fd_socket_t));
@@ -127,7 +140,12 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("handshake_callback_r invoked, but recv returned EAGAIN or EWOULDBLOCK\n");
+		
+		log_file = fopen(LOG_FILE, "a");
+		fprintf(log_file, "ERROR in handshake_callback_r: callback invoked, but recv returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+		fclose(log_file);		
+		
+
 		return;
 	}
 
@@ -190,11 +208,21 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("handshake_callback_w invoked, but send returned EAGAIN or EWOULDBLOCK\n");
+
+		
+		
+		log_file = fopen(LOG_FILE, "a");
+		fprintf(log_file, "ERROR in handshake_callback_w: callback invoked, but send returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+		fclose(log_file);		
+		
 		return;
 	}
 
-	printf("Handshake completed with connection %d...\n", client->tcp_sock);
+	log_file = fopen(LOG_FILE, "a");
+	fprintf(log_file, "MESSAGE in handshake_callback_w: handshake completed with connection %d...\n", client->tcp_sock);
+	fclose(log_file);	
+	
+
 
 	/* stop waiting for a handshake write, initialize echo read */
 	ev_io_stop(loop, &client->write_w);

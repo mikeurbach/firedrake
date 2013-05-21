@@ -29,6 +29,7 @@
 #endif
 
 /* defines */
+#define LOG_FILE "log.fd"
 #define LISTENQ 20 /*maximum number of client connections*/
 #define HEADERKEY "Sec-WebSocket-Key"
 #define MAGICSTRING "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -130,6 +131,7 @@ enum OPCODE {
 
 /* global variables */
 fd_channel_hash hashtable;
+FILE* log_file;
 
 /* handshaking function definitions */
 int handshake(int);
@@ -154,7 +156,7 @@ fd_channel_node create_channel(char *);
 int fd_broadcast(fd_socket_t *, char *, char *, int);
 void fd_channel_listener(struct ev_loop *, ev_io *, int);
 void fd_join_channel(fd_socket_t *, char *, 
-										 void (*cb)(fd_socket_t *, char *, int));
+void (*cb)(fd_socket_t *, char *, int));
 int hash(char *s, int size);
 
 /* firedrake function definitions */

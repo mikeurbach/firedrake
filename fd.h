@@ -34,7 +34,7 @@
 #define MAGICSTRING "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define MIN_HEADER_LEN 6
 #define MAX_HEADER_LEN 14
-#define MAX_MESSAGE_LEN 100000
+#define MAX_MESSAGE_LEN 4096
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
 #define HASH_SIZE 256
@@ -50,7 +50,10 @@ struct _fd_socket_t {
 	uint64_t bytes_outgoing;
 	uint64_t bytes_sent;
 	int header_len;
+	int fin;
+	int opcode;
 	uint32_t mask_key;
+	int mask_start;
 	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	char out_buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
 	unsigned int last_recv_opcode;
@@ -59,8 +62,10 @@ struct _fd_socket_t {
   int recvs;
 	int sends;
 	int event;
+	void *data;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
+	void (*end_cb)(fd_socket_t *socket);
 };
 
 typedef struct _fd_channel_watcher *fd_channel_watcher;

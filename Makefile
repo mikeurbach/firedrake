@@ -31,6 +31,16 @@ legacy: obj_legacy
 client: obj_client
 	$(CC) $(CFLAGS) -o client client.o base64.o  -lcrypto
 
+test: 
+	$(CC) -c $(CFLAGS) -o fd_run.o fd_run.c
+	$(CC) -c $(CFLAGS) -o base64.o base64.c
+	$(CC) -c $(CFLAGS) -o fd_util.o fd_util.c
+	$(CC) -c $(CFLAGS) -o fd_send.o fd_send_ev.c
+	$(CC) -c $(CFLAGS) -o fd_recv.o fd_recv_ev.c
+	$(CC) -c $(CFLAGS) -o fd_channels.o fd_channels.c
+	$(CC) -c $(CFLAGS) -o server.o server_test.c
+	$(CC) $(CFLAGS) -o server server.o fd_util.o fd_run.o fd_send.o base64.o fd_recv.o fd_channels.o -lpthread -lssl -lcrypto
+
 clean:
 	rm -f server client *.o
 	rm -f *~ *#

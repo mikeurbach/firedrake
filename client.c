@@ -1,7 +1,7 @@
 #include "fd.h"
 
 
-int fd_client_send(int sockfd, char *buff, int opcode);
+int fd_client_send(int sockfd, char *buff, int opcode, int fin);
 static void mask_payload(char* data, int len, uint32_t key);
 int fd_client_recv(int sockfd, char *buff);
 int fd_client_handshake(int sockfd);
@@ -9,7 +9,7 @@ static void print_menu();
 static int get_user_string(char *buffer);
 
 int main (int argc, char **argv){
-  int port, sockfd;
+  int port, sockfd, fin;
   socklen_t serverlen;
   struct sockaddr_in servaddr;
   char buffer[MAX_MESSAGE_LEN];
@@ -17,7 +17,7 @@ int main (int argc, char **argv){
 
   /* read the port from the command line */
   if(argc != 2){
-    printf("usage: server <port>\n");
+    printf("usage: client <port>\n");
     exit(1);
   }
   port = atoi(argv[1]);
@@ -56,50 +56,56 @@ int main (int argc, char **argv){
 
   print_menu();
 
-  while( (choice = fgetc(stdin) ) != EOF){
+	printf("fin bit: ");
+	scanf("%d\n", &fin);
+
+  while(scanf("%c\n", &choice) != EOF){
     
     memset(buffer, 0, MAX_MESSAGE_LEN);
 
     fflush(stdin);
 
     switch (choice){
+		case '0': 
+			close(sockfd);
+			return(EXIT_SUCCESS);
 
-      case '0': close(sockfd);
-              return(EXIT_SUCCESS);
-              break;
+		case '1': 
+			get_user_string(buffer);
+			fd_client_send(sockfd, buffer, CONTINUATION, fin);
+			break;
+							
+		case '2': 
+			get_user_string(buffer);
+			fd_client_send(sockfd, buffer, TEXT, fin);
+			break;
 
-      /*case '1': fgets(buffer, MAX_MESSAGE_LEN, stdin);
-              fd_client_send(sockfd, buffer, CONTINUATION);
-              fgets(buffer, MAX_MESSAGE_LEN, stdin);
-              fd_client_send(sockfd, buffer, CONTINUATION);
-              break;*/
+		case '3': 
+			get_user_string(buffer);
+			fd_client_send(sockfd, buffer, BINARY, fin);
+			break;
 
-      case '2': printf("\nEnter the text string you wish to send: ");
-              get_user_string(buffer);
-              fd_client_send(sockfd, buffer, TEXT);
-              fd_client_recv(sockfd, buffer);
-              printf("\nReceived: %s\n\n", buffer);
-              break;
+		case '4': 
+			fd_client_send(sockfd, NULL, CONNECTION_CLOSE, fin);
+			break;
 
-      case '3': printf("\nEnter the binary string you wish to send: ");
-              get_user_string(buffer);
-              fd_client_send(sockfd, buffer, BINARY);
-              fd_client_recv(sockfd, buffer);
-              printf("\nReceived: %s\n\n", buffer);
-              break;
+		case '5': 
+			fd_client_send(sockfd, NULL, PING, fin);
+			break;
 
-      case '4': fd_client_send(sockfd, NULL, CONNECTION_CLOSE);
-              break;
-
-      case '5': fd_client_send(sockfd, NULL, PING);
-              break;
-
-      case '6': fd_client_send(sockfd, NULL, PONG);
-              break;
-
+		case '6': 
+			fd_client_send(sockfd, NULL, PONG, fin);
+			break;
     }
 
+		if(fin){
+			fd_client_recv(sockfd, buffer);
+			printf("\nReceived: %s\n\n", buffer);
+		}
+
     print_menu();
+		printf("fin bit: ");
+		scanf("%d\n", &fin);
   }
 
 }
@@ -152,7 +158,11 @@ int fd_client_handshake(int sockfd){
 static int get_user_string(char *buffer){
   int received = 0;
 
-  fgets(buffer, MAX_MESSAGE_LEN, stdin);
+	fflush(stdout);
+ 
+	printf("Enter your message: ");
+
+  scanf("%[^\n]s", buffer);
 
   fflush(stdin);
 
@@ -160,20 +170,26 @@ static int get_user_string(char *buffer){
 }
 
 
-int fd_client_send(int sockfd, char *buff, int opcode){
+int fd_client_send(int sockfd, char *buff, int opcode, int fin){
   unsigned long long header, mask;
-  int i = 0, skip, buf_size = strlen(buff);
+  int i = 0, skip, buf_size;
   char buff_to_send[MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1];
   char val;
-  
+
+	if(buff != NULL)
+		buf_size = strlen(buff);
+	else
+		buf_size = 0;
+
   // build up the header
   memset(buff_to_send, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
   //  printf("buff passed into fd_send: %s, size: %d\n", buff, buf_size);
 
-  // first 4 bits (FIN, RSV1-3) are always 0 
-  // next 4 bits are opcode, we use 0x1 for text frame 
-  header = 0x81;
-  
+	printf("client sending with opcode: %x\n", opcode);
+	
+	/* assemble the first byte of the header */ 
+	header = fin << 7 | opcode;
+
   // Use payload length to determine payload length bits 
   if (buf_size <= 125) {
     // data length bits are just the size
@@ -280,16 +296,17 @@ int fd_client_send(int sockfd, char *buff, int opcode){
 
   // send the buffer with the correct header to socket
 
-  return send(sockfd, buff_to_send, skip + strlen(buff),0);
+  return send(sockfd, buff_to_send, skip + buf_size, 0);
 }
 
 
 void fd_strcat(char *output, char *buff, int skip) {
-  int i,j;
+  int i = skip, j = 0;
 
-  for(i = skip, j = 0; j < strlen(buff); i++, j++){
-    output[i] = buff[j];
-  }
+	if(buff != NULL)
+		for(i, j; j < strlen(buff); i++, j++)
+			output[i] = buff[j];
+
   output[i] = '\0';
 
 }
@@ -419,7 +436,7 @@ int fd_client_recv(int sockfd, char *buff){
 	  ext_payload_len2 = (ext_payload_len2 & 0x00000000000000FFUL) << 56 | (ext_payload_len2 & 0x000000000000FF00UL) << 40 |
 	    (ext_payload_len2 & 0x0000000000FF0000UL) << 24 | (ext_payload_len2 & 0x00000000FF000000UL) << 8 |
 	    (ext_payload_len2 & 0x000000FF00000000UL) >> 8 | (ext_payload_len2 & 0x0000FF0000000000UL) >> 24 |
-p	    (ext_payload_len2 & 0x00FF000000000000UL) >> 40 | (ext_payload_len2 & 0xFF00000000000000UL) >> 56;		
+	    (ext_payload_len2 & 0x00FF000000000000UL) >> 40 | (ext_payload_len2 & 0xFF00000000000000UL) >> 56;		
 	  final_payload_len = ext_payload_len2;
 	}
 
@@ -457,14 +474,14 @@ p	    (ext_payload_len2 & 0x00FF000000000000UL) >> 40 | (ext_payload_len2 & 0xFF
 
 	if(opcode == PING){
 		//send a pong
-		status = fd_client_send(sockfd, buff, PONG);
+		status = fd_client_send(sockfd, buff, PONG, fin);
 	}
 	else if(opcode == PONG){
 		//check to make sure APPLICATION data is the same as was in the PING (how?)
 	}
 	else if(opcode == CONNECTION_CLOSE){
 		//send a matching CLOSE message and close the socket gracefully (fd_close function?)
-		status = fd_client_send(sockfd, buff, CONNECTION_CLOSE);
+		status = fd_client_send(sockfd, buff, CONNECTION_CLOSE, fin);
 
 	}
 

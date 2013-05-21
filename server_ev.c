@@ -7,6 +7,9 @@ void onchannel(fd_socket_t *, char *, int);
 int main(int argc, char *argv[]){
 	int port;
 
+	//setup the log file for use
+	fd_log_setup;
+	
 	/* read the port from the command line */
 	if(argc != 2){
 		printf("usage: server <port>\n");
@@ -24,7 +27,8 @@ int main(int argc, char *argv[]){
 }
 
 void onconnection(fd_socket_t *socket){
-	printf("onconnection invoked on new socket with id %d\n", 
+
+	fd_log_d("onconnection invoked on new socket with id %d\n", 
 				 socket->tcp_sock);
 
 	/* set the data callback */
@@ -35,7 +39,8 @@ void onconnection(fd_socket_t *socket){
 }
 
 void ondata(fd_socket_t *socket, char *buffer){
-	printf("ondata invoked on socket with id %d\n", 
+	
+	fd_log_d("ondata invoked on socket with id %d\n", 
 				 socket->tcp_sock);
 
 	/* broadcast your message to the channel */

@@ -69,16 +69,12 @@ void remove_from_channel(char *key, int sock){
     
 
     if (current == NULL) {
-    	log_file = fopen(LOG_FILE, "a");
-    	fprintf(log_file, "ERROR in remove_from_channel: socket with sockid %d was not found in channel with name: %s\n", sock, key);
-    	fclose(log_file);
+    	fd_log_e("socket with sockid %d was not found in channel with name: %s\n", sock, key);
     }
 
     /* remove watcher from list of watchers in channel */
     else {
-    	log_file = fopen(LOG_FILE, "a");
-    	fprintf(log_file, "MESSAGE in remove_from_channel: removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
-    	fclose(log_file);
+    	fd_log_i("removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
     	
       if (prev == NULL) {
 	node->watchers = current->next;
@@ -91,11 +87,7 @@ void remove_from_channel(char *key, int sock){
     }
   }
   else{
-	  
-  	log_file = fopen(LOG_FILE, "a");
-  	fprintf(log_file, "ERROR in remove_from_channel: node for channel with name %s was null\n", key);
-  	fclose(log_file);
-	  
+	fd_log_e("node for channel with name %s was null\n", key);
   }
 }
 
@@ -108,10 +100,7 @@ void close_channel(char *key){
   slot = hash(key, hashtable->size);
 
   if (node == NULL){
-	  
-	log_file = fopen(LOG_FILE, "a");
-	fprintf(log_file, "ERROR in close_channel: the node you are attempting to delete does not exist.\n");
-	fclose(log_file);	  
+	fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {

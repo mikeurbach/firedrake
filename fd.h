@@ -40,6 +40,32 @@
 #define PAYLOAD_EXT_64 127
 #define HASH_SIZE 256
 
+/* logging macros */
+
+/* open logging file */
+#define fd_log_setup {log_file = fopen(LOG_FILE,"a");}
+
+/*close logging file*/
+#define fd_log_close {fclose(log_file);}
+
+/* debug log */
+#define fd_log_d(...) {fprintf(log_file, "[DEBUG] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* info log */
+#define fd_log_i(...) {fprintf(log_file, "[INFO] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* message log */
+#define fd_log_m(...) {fprintf(log_file, "[MESSAGE] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	
+
+/* warning log */  	  	  	  	  	  
+#define fd_log_w(...) {fprintf(log_file, "[WARNING] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* critical log */  	  	  	  	  	  
+#define fd_log_c(...) {fprintf(log_file, "[CRITICAL] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+  	  	  	  	  	  
+/* error log */
+#define fd_log_e(...) {fprintf(log_file, "[ERROR] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	  	  	  	  	  
+
 /* structs */
 typedef struct _fd_socket_t fd_socket_t;
 struct _fd_socket_t {

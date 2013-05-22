@@ -287,7 +287,7 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
 		/* if this is the final message in a fragment, 
 		   and the whole thing fit in the buffer */
-		if(socket->fin)
+		if(socket->fin && socket->end_cb(socket) != NULL)
 			socket->end_cb(socket);
 
     //		printf("Receives: %d\n",socket->recvs);

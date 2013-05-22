@@ -83,7 +83,7 @@ typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
 	fd_channel_watcher watchers;
 	char *key;
-	char buffer[MAX_MESSAGE_LEN];
+	char *buffer;
 	fd_channel_node next;
 };
 

@@ -33,7 +33,7 @@ void onconnection(fd_socket_t *socket){
 	socket->end_cb = onend;
 
 	/* add the socket to the "chatroom" channel */
-	/* fd_join_channel(socket, "chatroom", onchannel); */
+	fd_join_channel(socket, "chatroom", onchannel);
 }
 
 void ondata(fd_socket_t *socket, char *buffer){
@@ -50,13 +50,13 @@ void ondata(fd_socket_t *socket, char *buffer){
 
 void onend(fd_socket_t *socket){
 	/* broadcast your message to the channel */
-	/* fd_broadcast(socket, "chatroom", (char *) socket->data, TEXT); */
+	fd_broadcast(socket, "chatroom", (char *) socket->data, TEXT);
 
 	printf("onend invoked on socket with id %d\n",
 				 socket->tcp_sock);
 
 	/* echo server */
-	fd_send(socket, (char *) socket->data, TEXT);
+	/* fd_send(socket, (char *) socket->data, TEXT); */
 	
 	socket->data = NULL;
 }

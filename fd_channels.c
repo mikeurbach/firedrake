@@ -41,6 +41,8 @@ fd_channel_node create_channel(char *key){
 		node = malloc(sizeof(struct _fd_channel_node));
 		memset(node, 0, sizeof(struct _fd_channel_node));
 		node->key = strdup(key);
+		node->buffer = malloc(MAX_MESSAGE_LEN);
+		memset(node->buffer, 0, MAX_MESSAGE_LEN);
 
 		/* put it in the hash table */
 		node->next = hashtable->table[slot];
@@ -130,10 +132,16 @@ int fd_broadcast(fd_socket_t *socket, char *key, char *buffer,
 	fd_channel_watcher node;
 	struct ev_loop *loop = EV_DEFAULT;
 
+	channel->buffer = realloc(channel->buffer, strlen(buffer) + 1);
 	fd_strcat(channel->buffer, buffer, 0);
 
+	/* loop through all the watchers in this channel */
 	for(counter = 0, node = channel->watchers; node != NULL; 
 			counter++, node = node->next){
+		/* realloc may have changed this channel's buffer's location */
+		node->buffer = channel->buffer;
+
+		/* if it's not ourself, use libev to send the message */
 		if(node->socket != socket){
 			node->msg_type = msg_type;
 			ev_feed_event(loop, &node->w, EV_CUSTOM);

@@ -3,19 +3,18 @@
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
 
-static int unmask_payload(char*, uint64_t, uint32_t, int);
+static void unmask_payload(char*, uint64_t, uint32_t);
 
 int fd_recv(fd_socket_t *sock, char *buff){
 
   return 0;
 }
 
-static int unmask_payload(char* data, uint64_t len, uint32_t key, 
-													 int start){
+static void unmask_payload(char* data, uint64_t len, uint32_t key){
 	int i;
   uint8_t	octet;
 
-  for(i = start; i < len; i++){
+  for(i = 0; i < len; i++){
     switch (i % 4){
     case 0: octet = (key & 0xFF);
       break;
@@ -27,10 +26,8 @@ static int unmask_payload(char* data, uint64_t len, uint32_t key,
       break;
     }
 
-    data[i - start] = data[i - start] ^ octet;
+    data[i] = data[i] ^ octet;
   }
-
-	return i;
 }
 
 /* 
@@ -291,12 +288,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 		 if(socket->mask_key){		  
 			 /* save where the unmasking stopped, in the case of a
 					buffer overflow situation this will be useful */
-			 socket->mask_start = 
-				 unmask_payload(socket->buffer + socket->header_len,
-												socket->bytes_received - socket->header_len + 
-													socket->mask_start,
-												socket->mask_key,
-												socket->mask_start);
+			 unmask_payload(socket->buffer + socket->header_len,
+											socket->bytes_received - socket->header_len,
+											socket->mask_key);
 		 }
 
 		 //		printf("fd_recv_nb: unmasked data is \"%s\"\n", socket->buffer + socket->header_len);

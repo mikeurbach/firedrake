@@ -20,13 +20,12 @@ void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
 }
 
 int fd_socket_close(fd_socket_t *sock){
-
-  log_file = fopen(LOG_FILE, "a");
-  fprintf(log_file, "MESSAGE in fd_socket_close: closing socket with file descriptor: %d\n",sock->tcp_sock);
-  fclose(log_file);
+  
+  fd_log_i("closing socket with file descriptor: %d\n",sock->tcp_sock);
   
   remove_from_channel("chatroom", sock->tcp_sock);
   sock->is_open = false;
   return ( close(sock->tcp_sock) );
 
 }
+

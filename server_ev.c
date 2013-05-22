@@ -8,6 +8,9 @@ void onchannel(fd_socket_t *, char *, int);
 int main(int argc, char *argv[]){
 	int port;
 
+	//setup the log file for use
+	fd_log_setup;
+	
 	/* read the port from the command line */
 	if(argc != 2){
 		printf("usage: server <port>\n");
@@ -25,8 +28,8 @@ int main(int argc, char *argv[]){
 }
 
 void onconnection(fd_socket_t *socket){
-	printf("onconnection invoked on new socket with id %d\n", 
-				 socket->tcp_sock);
+
+	printf("onconnection invoked on new socket with id %d\n", socket->tcp_sock);
 
 	/* set the callbacks */
 	socket->data_cb = ondata;
@@ -39,12 +42,10 @@ void onconnection(fd_socket_t *socket){
 void ondata(fd_socket_t *socket, char *buffer){
 	int length = socket->data == NULL ? 0 : strlen((char *) socket->data);
 
-	printf("ondata invoked on socket with id %d\n", 
-				 socket->tcp_sock);
+	printf("ondata invoked on socket with id %d\n", socket->tcp_sock);
 
 	/* add the received data to our growing buffer */
-	socket->data = realloc(socket->data, 
-												 length + strlen(buffer) + 1);
+	socket->data = realloc(socket->data, length + strlen(buffer) + 1);
 	fd_strcat((char *) socket->data, buffer, length);
 }
 
@@ -52,8 +53,7 @@ void onend(fd_socket_t *socket){
 	/* broadcast your message to the channel */
 	fd_broadcast(socket, "chatroom", (char *) socket->data, TEXT);
 
-	printf("onend invoked on socket with id %d\n",
-				 socket->tcp_sock);
+	printf("onend invoked on socket with id %d\n", socket->tcp_sock);
 
 	/* echo server */
 	/* fd_send(socket, (char *) socket->data, TEXT); */

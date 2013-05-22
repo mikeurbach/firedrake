@@ -66,8 +66,6 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	/* start the loop */
 	ev_run(loop, 0);
 
-
-
 	return 0;
 }
 
@@ -144,7 +142,6 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 		log_file = fopen(LOG_FILE, "a");
 		fprintf(log_file, "ERROR in handshake_callback_r: callback invoked, but recv returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
 		fclose(log_file);		
-		
 
 		return;
 	}

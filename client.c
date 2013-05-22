@@ -239,6 +239,9 @@ int fd_client_send(int sockfd, char *buff, int opcode, int fin){
 		skip = 4;
   }
   else {
+		int j;
+		uint32_t temp, mask_key = 42;
+
     // first append the data length to indicate 64 bit length coming
     header = header | 0xFF00;
 
@@ -260,7 +263,7 @@ int fd_client_send(int sockfd, char *buff, int opcode, int fin){
 
 		/* 8 bytes for message length */
 		mask = 0xFF00000000000000;
-		int j;
+
 		for(j=56;j >= 0; j = j - 8) {
 			val = (char)((header & mask) >> j);
 			buff_to_send[i++] = val;
@@ -272,7 +275,6 @@ int fd_client_send(int sockfd, char *buff, int opcode, int fin){
   }
 
   // add mask to buff 
-  uint32_t temp, mask_key = 42;
   temp = mask_key;
 
   for (i; i < (skip + 4); i++){
@@ -314,9 +316,10 @@ void fd_strcat(char *output, char *buff, int skip) {
 
 static void mask_payload(char* data, int len, uint32_t key){
 
+	int i;
   uint8_t	octet;
 
-  for(int i = 0; i < len; i++){
+  for(i = 0; i < len; i++){
     switch (i % 4){
     case 0: octet = (key & 0xFF);
       break;

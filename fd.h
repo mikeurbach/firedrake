@@ -9,7 +9,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -56,7 +55,7 @@ struct _fd_socket_t {
 	uint32_t mask_key;
 	int mask_start;
 	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
-	char out_buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
+	char *out_buffer;
 	unsigned int last_recv_opcode;
 	bool is_open;
   int just_opened;

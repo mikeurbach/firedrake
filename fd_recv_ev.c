@@ -27,10 +27,10 @@ static int unmask_payload(char* data, uint64_t len, uint32_t key,
       break;
     }
 
-    data[i] = data[i] ^ octet;
+    data[i - start] = data[i - start] ^ octet;
   }
 
-	return --i % 4;
+	return i;
 }
 
 /* 
@@ -261,7 +261,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 			   buffer overflow situation this will be useful */
       socket->mask_start = 
 				unmask_payload(socket->buffer + socket->header_len,
-											 socket->bytes_received - socket->header_len,
+											 socket->bytes_received - socket->header_len + 
+											   socket->mask_start,
 											 socket->mask_key,
 											 socket->mask_start);
     }
@@ -292,7 +293,6 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
       fd_socket_destroy(socket, loop);
 			break;
 		}
-
 
 		/* if we're in a buffer overflow situation */
 		if(socket->bytes_expected > MAX_HEADER_LEN + MAX_MESSAGE_LEN){

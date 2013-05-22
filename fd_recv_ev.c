@@ -70,28 +70,48 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
 	assert_event(EV_READ);
 
-  /* increment recv count */
-  socket->recvs += 1;
-
-  /* call recv once, saving the byte count received in status */
-  if((status = 
-      recv(socket->tcp_sock, 
-					 socket->buffer + socket->bytes_received, 
-					 MAX_HEADER_LEN + MAX_MESSAGE_LEN - socket->bytes_received, 
-					 0)) < 0){
-    /* since we're nonblocking, these are ok */
-    if(errno != EAGAIN && errno != EWOULDBLOCK){
-      perror(__FILE__);
-      exit(errno);
-    }
+	/* if it's the first call, only want to receive enough to get the payload size */
+	if(socket->bytes_received < MAX_HEADER_LEN){
+		/* call recv once, saving the byte count received in status */
+		if((status = 
+				recv(socket->tcp_sock, 
+						 socket->buffer + socket->bytes_received, 
+						 MAX_HEADER_LEN,
+						 0)) < 0){
+			/* since we're nonblocking, these are ok */
+			if(errno != EAGAIN && errno != EWOULDBLOCK){
+				perror(__FILE__);
+				exit(errno);
+			}
     
-    log_file = fopen(LOG_FILE, "a");
-    fprintf(log_file, "ERROR in fd_recv_nb: recv invoked, but returned EAGAIN or EWOULDBLOCK\n");
-    fclose(log_file);
-    
+			log_file = fopen(LOG_FILE, "a");
+			fprintf(log_file, "ERROR in fd_recv_nb: recv invoked, but returned EAGAIN or EWOULDBLOCK\n");
+			fclose(log_file);
 
-    return;
-  }
+			return;
+		}
+	} 
+	/* now we know how big the buffer is */
+	else {
+		/* call recv once, saving the byte count received in status */
+		if((status = 
+				recv(socket->tcp_sock, 
+						 socket->buffer + socket->bytes_received, 
+						 socket->bytes_expected - socket->bytes_received,
+						 0)) < 0){
+			/* since we're nonblocking, these are ok */
+			if(errno != EAGAIN && errno != EWOULDBLOCK){
+				perror(__FILE__);
+				exit(errno);
+			}
+    
+			log_file = fopen(LOG_FILE, "a");
+			fprintf(log_file, "ERROR in fd_recv_nb: recv invoked, but returned EAGAIN or EWOULDBLOCK\n");
+			fclose(log_file);
+
+			return;
+		}
+	}
 
 
   //  printf("fd_recv_nb: socket->just_opened = %d\n", socket->just_opened);
@@ -102,6 +122,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
     return;
   }
 
+  /* increment recv count */
+  socket->recvs += 1;
   socket->just_opened = 0;
   
   log_file = fopen(LOG_FILE, "a");
@@ -216,103 +238,108 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 				socket->bytes_expected = ext_payload_len2 + socket->header_len;
 				offset = 10;
       }
+			
+			/* adjust the buffer size appropriately */
+			socket->buffer = realloc(socket->buffer, socket->bytes_expected + 1);
+			if(socket->buffer == NULL){
+				/* handle the error */
+			}
+			memset(socket->buffer + socket->bytes_received, 0, 
+						 socket->bytes_expected - socket->bytes_received);
 
-      /* save the mask key */
-      if(is_masked){
-				mask_key = 0;
-				for(i = 0; i < 4; i++){
-					byte = *(socket->buffer + offset + i);
-					temp3 = (uint32_t) byte & 0xFF;
-					temp3 = temp3 << (24 - (8*i));
-					mask_key |= temp3;
-				}
-				
-				/* Reverse order of the mask */
-				mask_key = 
-					(0xFF000000 & (mask_key << 24)) | 
-					(0x00FF0000 & (mask_key << 8)) | 
-					(0x0000FF00 & (mask_key >> 8)) | 
-					(0x000000FF & (mask_key >> 24));
+			 /* save the mask key */
+			 if(is_masked){
+				 mask_key = 0;
+				 for(i = 0; i < 4; i++){
+					 byte = *(socket->buffer + offset + i);
+					 temp3 = (uint32_t) byte & 0xFF;
+					 temp3 = temp3 << (24 - (8*i));
+					 mask_key |= temp3;
+				 }
 
-				socket->mask_key = mask_key;
-				socket->mask_start = 0;
-      }
-    }
-  }
+				 /* Reverse order of the mask */
+				 mask_key = 
+					 (0xFF000000 & (mask_key << 24)) | 
+					 (0x00FF0000 & (mask_key << 8)) | 
+					 (0x0000FF00 & (mask_key >> 8)) | 
+					 (0x000000FF & (mask_key >> 24));
+
+				 socket->mask_key = mask_key;
+				 socket->mask_start = 0;
+			 }
+		 }
+	 }
 
 
-  log_file = fopen(LOG_FILE, "a");
-  fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_received: %d\n",(int) socket->bytes_received);
-  fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_expected: %d\n",(int) socket->bytes_expected);
-  fclose(log_file);		
-      
+	 log_file = fopen(LOG_FILE, "a");
+	 fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_received: %d\n",(int) socket->bytes_received);
+	 fprintf(log_file, "MESSAGE in fd_recv_nb: total bytes_expected: %d\n",(int) socket->bytes_expected);
+	 fclose(log_file);		
 
-  /* if we have received the full payload */
-  if(socket->bytes_received == socket->bytes_expected ||
-		 socket->bytes_received == MAX_HEADER_LEN + MAX_MESSAGE_LEN){
-	  
-	  log_file = fopen(LOG_FILE, "a");
-	  fprintf(log_file, "MESSAGE in fd_recv_nb: done receiving\n");
-	  fclose(log_file);	
- 
-    /* unmask the payload */
-    if(socket->mask_key){		  
-			/* save where the unmasking stopped, in the case of a
-			   buffer overflow situation this will be useful */
-      socket->mask_start = 
-				unmask_payload(socket->buffer + socket->header_len,
-											 socket->bytes_received - socket->header_len + 
-											   socket->mask_start,
-											 socket->mask_key,
-											 socket->mask_start);
-    }
 
-    //		printf("fd_recv_nb: unmasked data is \"%s\"\n", socket->buffer + socket->header_len);
+	 /* if we have received the full payload */
+	 if(socket->bytes_received == socket->bytes_expected ||
+			socket->bytes_received == MAX_HEADER_LEN + MAX_MESSAGE_LEN){
 
-		/* handle the different known opcodes */
-		switch(socket->opcode){
-		case TEXT:
-		case BINARY:
-		case CONTINUATION:
-			/* notify the "data available" callback that the recv is done */
-			socket->data_cb(socket, socket->buffer + socket->header_len);
-			break;
-    case PING:
-      /* send a pong */
-      status = fd_send(socket, socket->buffer, PONG);
-			break;
-		case PONG:
-      /* check APPLICATION data is the same as in the PING (how?) */
-			break;
-		case CONNECTION_CLOSE:
-      /* send a matching CLOSE message and close the socket gracefully */
-  	  log_file = fopen(LOG_FILE, "a");
-  	  fprintf(log_file, "MESSAGE in fd_recv_nb: close message received\n");
-  	  fclose(log_file);
-      status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
-      fd_socket_destroy(socket, loop);
-			break;
-		}
+		 socket->buffer[socket->bytes_expected] = '\0';
 
-		/* if we're in a buffer overflow situation */
-		if(socket->bytes_expected > MAX_HEADER_LEN + MAX_MESSAGE_LEN){
-			memset(socket->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
-			socket->bytes_expected -= socket->bytes_received;
-			socket->bytes_received = 0;
-			socket->header_len = 0;
-			return;
-		}
+		 log_file = fopen(LOG_FILE, "a");
+		 fprintf(log_file, "MESSAGE in fd_recv_nb: done receiving\n");
+		 fclose(log_file);	
 
-		/* if this is the final message in a fragment, 
-		   and the whole thing fit in the buffer */
-		if(socket->fin)
-			socket->end_cb(socket);
+		 /* unmask the payload */
+		 if(socket->mask_key){		  
+			 /* save where the unmasking stopped, in the case of a
+					buffer overflow situation this will be useful */
+			 socket->mask_start = 
+				 unmask_payload(socket->buffer + socket->header_len,
+												socket->bytes_received - socket->header_len + 
+													socket->mask_start,
+												socket->mask_key,
+												socket->mask_start);
+		 }
 
-    //		printf("Receives: %d\n",socket->recvs);
-    //		printf("Buffer is: %s\n", socket->buffer + socket->header_len);
+		 //		printf("fd_recv_nb: unmasked data is \"%s\"\n", socket->buffer + socket->header_len);
 
-    /* Reset data in socket struct to get ready for next recv */
-    memset(socket->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+		 /* handle the different known opcodes */
+		 switch(socket->opcode){
+		 case TEXT:
+		 case BINARY:
+		 case CONTINUATION:
+			 /* notify the "data available" callback that the recv is done */
+			 socket->data_cb(socket, socket->buffer + socket->header_len);
+			 break;
+		 case PING:
+			 /* send a pong */
+			 status = fd_send(socket, socket->buffer, PONG);
+			 break;
+		 case PONG:
+			 /* check APPLICATION data is the same as in the PING (how?) */
+			 break;
+		 case CONNECTION_CLOSE:
+			 /* send a matching CLOSE message and close the socket gracefully */
+			 log_file = fopen(LOG_FILE, "a");
+			 fprintf(log_file, "MESSAGE in fd_recv_nb: close message received\n");
+			 fclose(log_file);
+			 status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
+			 fd_socket_destroy(socket, loop);
+			 break;
+		 }
+
+		 /* if this is the final message in a fragment, 
+				and the whole thing fit in the buffer */
+		 if(socket->fin)
+			 socket->end_cb(socket);
+
+		 //		printf("Receives: %d\n",socket->recvs);
+		 //		printf("Buffer is: %s\n", socket->buffer + socket->header_len);
+
+		 /* Reset data in socket struct to get ready for next recv */
+		 socket->buffer = realloc(socket->buffer, MAX_HEADER_LEN);
+		 if(socket->buffer == NULL){
+			 /* handle the error */
+		 }
+		 memset(socket->buffer, 0, MAX_HEADER_LEN);
     socket->recvs = 0;
     socket->bytes_expected = 0;
     socket->bytes_received = 0;

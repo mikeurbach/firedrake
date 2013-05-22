@@ -54,7 +54,7 @@ struct _fd_socket_t {
 	int opcode;
 	uint32_t mask_key;
 	int mask_start;
-	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
+	char *buffer;
 	char *out_buffer;
 	unsigned int last_recv_opcode;
 	bool is_open;

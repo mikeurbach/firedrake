@@ -115,6 +115,8 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 	client = malloc(sizeof(fd_socket_t));
 	memset(client, 0, sizeof(fd_socket_t));
 	client->tcp_sock = connfd;
+	client->buffer = malloc(MAX_MESSAGE_LEN);
+	memset(client->buffer, 0, MAX_MESSAGE_LEN);
 
 	/* invoke the user's callback on the fresh socket, 
 	   before the handshake has begun */
@@ -177,7 +179,7 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 		"Connection: Upgrade\r\n"										\
 		"Sec-WebSocket-Accept: ";
 
-	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n");
+	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n") + 1;
 	response = malloc(resplen);
 	memset(response, 0, resplen);
 	strcpy(response, headers);
@@ -205,8 +207,6 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 			perror(__FILE__);
 			exit(errno);
 		}
-
-		
 		
 		log_file = fopen(LOG_FILE, "a");
 		fprintf(log_file, "ERROR in handshake_callback_w: callback invoked, but send returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
@@ -218,14 +218,13 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	log_file = fopen(LOG_FILE, "a");
 	fprintf(log_file, "MESSAGE in handshake_callback_w: handshake completed with connection %d...\n", client->tcp_sock);
 	fclose(log_file);	
-	
-
 
 	/* stop waiting for a handshake write, initialize echo read */
 	ev_io_stop(loop, &client->write_w);
 
 	client->just_opened = 1;
-	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+	client->buffer = realloc(client->buffer, MAX_HEADER_LEN);
+	memset(client->buffer, 0, MAX_HEADER_LEN);
 	client->recvs = 0;
 	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->read_w);

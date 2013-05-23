@@ -6,7 +6,7 @@ fd_log_setup
 	if you wish to use the built in logging functions, you must run this macro at the beginning of your server code.  this function opens the logging file which is called  log.fd.	
 
 fd_log_d(format_string char[]);
-	logs a DEBUG message.
+	logs a DEBUG message. firedrake recommends you use the DEBUG message so your own messages will be easier to find within the log.fd file
 
 fd_log_i(format_string char[]);
 	logs and INFO message.
@@ -101,6 +101,7 @@ void onchannel(fd_socket_t *, char *, int);
 main function:
 
 fd_log_setup;
+
 	if you wish to use firedrake's logging functionality before you call fd_run, you must use this macro to set up the log file.
 
 if(argc != 2){
@@ -108,7 +109,72 @@ if(argc != 2){
 	exit(1);
 }
 port = atoi(argv[1]);
-	take a command line argument to 
+
+	take a command line argument to determine what port you would like your server to listen on.  you may wish to hard code this port into your server or not.
 	
 
 create_channel("chatroom")
+	
+	creates a channel that will hold some sockets called "chatroom".  in general the user simply needs to keep track of channel names and socket file descriptors and firedrake takes care of the rest.
+
+fd_run(port, onconnection);
+	
+	runs the firedrake event loop. port is the port you would like to listen on for connections (here obtained from the command line argument). onconnection is a function callback that will be run everytime a new connection is accepted, we will define this in a second.
+
+void onconnection(fd_socket_t *socket):
+
+	this will be invoked every time a new socket is connected. the callback is passed the newly created socket object. in this example, the callback sets the callback that will be invoked when there is a message from the client, and adds the socket to the "chatroom" channel.  we don't do it here, but you may wish to access the socket file descriptor in this function. you may do this by using socket->tcp_sock. 
+
+fd_log_d("onconnection invoked on new socket with id %d\n", socket->tcp_sock);
+	
+	this is a firedrake logging debug (hence the _d) statement. it takes a formatted string, and will show up in the log file called log.fd. firedrake recommends that you use mostly fd_log_d statements for logging, as they will be easier to find in the log file.
+
+socket->data_cb = ondata;
+socket->end_cb = onend;
+
+	these two lines set function callbacks for two more firedrake supported events called ondata and onend. we will discuss these more in a bit.
+
+fd_join_channel(socket, "chatroom", onchannel);
+	
+	this is how you add your newly created socket to the "chatroom" channel that you created in your main function.
+
+
+void ondata(fd_socket_t *socket, char *buffer)
+
+	as mentioned previously, ondata is one of the events that firedrake provides you.  it gets passed the socket and a buffer from the event loop any time the socket's buffer has received some data.  you may wish to do something with the data, or you may wish to simply add it to the buffer and wait for the full message to arrive, which is what the onend event defines.
+
+int length = socket->data == NULL ? 0 : strlen((char *) socket->data);
+	
+fd_log_d("ondata invoked on socket with id %d\n", socket->tcp_sock);
+
+	another logging statement to provide some info in the log file.
+
+socket->data = realloc(socket->data, length + strlen(buffer) + 1);
+fd_strcat((char *) socket->data, buffer, length);
+
+	for our chatroom example we will simply add the data to the growing buffer and wait for a full message to arrive.
+
+
+void onend(fd_socket_t *socket)
+	
+	the onend event is the function callback for when a full message has been received via the open websocket.  it is simply passed the socket struct from which the data came.
+
+fd_broadcast(socket, "chatroom", (char *) socket->data, TEXT);
+
+	this line broadcasts the message that was in socket->data to the "chatroom" channel as a TEXT message.
+
+fd_log_d("onend invoked on socket with id %d\n", socket->tcp_sock);
+	
+	another debugging statement.
+
+socket->data = NULL;
+
+	reset the socket's data field to NULL.
+
+
+void onchannel(fd_socket_t *socket, char *buffer, int msg_type)
+
+	this will be invoked every time a socket in the channel broadcasts a message.  the callback is passed the socket object, a buffer of data that has been received from the channel, and the type of message that was broadcast. in this example, the callback simply sends the buffer back to the socket's client.
+
+fd_send(socket, buffer, msg_type);
+	send the buffer to the socket with the msg_type specified by the parameter.

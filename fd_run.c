@@ -8,6 +8,7 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   struct sockaddr_in servaddr;
   struct ev_loop *loop = EV_DEFAULT;
   ev_signal sigint_w;
+	pthread_t *log_thread = malloc(sizeof(pthread_t));
 
 	/* call socket to get a file descriptor */
   if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -54,6 +55,10 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	if(hashtable == NULL)
 		hashtable = init_channels(HASH_SIZE);
 
+	/* setup logging */
+	log_file = fopen(LOG_FILE,"a");								
+	log_queue = qopen();
+	pthread_create(log_thread, NULL, fd_log, NULL);
 	
 	/* Initialive watcher to catch SIGINT to close gracefully */
 	ev_signal_init(&sigint_w, fd_close, SIGINT);
@@ -79,6 +84,9 @@ void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
   /* end the event loop */
   ev_break(loop, EVBREAK_ALL);
   
+	/* close the log queue */
+	qclose(log_queue);
+
   /* close the log file */
   fd_log_close;
 }

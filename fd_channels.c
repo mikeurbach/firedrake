@@ -138,6 +138,7 @@ void remove_channel_from_sock_list(fd_socket_t *socket, char *key){
     }
   
     /* free the channel name struct */
+    free(current->key);
     free(current);
 
   }
@@ -168,6 +169,8 @@ void fd_close_channel(char *key){
 	remove_channel_from_sock_list(prev->socket, key);
 
 	ev_io_stop(loop, &prev->w);
+	free(prev->key);
+	free(prev->buffer);
 	free(prev);
 	prev = current;
       }
@@ -202,6 +205,7 @@ void close_all_channels(){
   fd_channel_node current, prev;
   for(int i = 0; i < channel_hashtable->size; i++){
     current = channel_hashtable->table[i];
+
     /* if slot in hashtable has channel node, remove all channels */
     if (current != NULL){
       prev = current;
@@ -213,6 +217,10 @@ void close_all_channels(){
       fd_close_channel(prev->key);
     }    
   }
+
+  /* now free the dictionary itself */
+  free(channel_hashtable);
+
 }
 
 

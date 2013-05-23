@@ -30,8 +30,10 @@ void fd_socket_destroy(int sockid){
   /* cleanup the socket struct */
   sock->is_open = false;
   close(sock->tcp_sock);
-  //  free(sock->buffer);
-  //  free(sock->out_buffer);
+  /* if (sock->buffer != NULL) */
+  /*   free(sock->buffer); */
+  /* if (sock->out_buffer != NULL) */
+  /*   free(sock->out_buffer); */
   free(sock);
 }
 
@@ -136,6 +138,7 @@ void destroy_all_sockets(){
   }
 
   /* now free the dictionary itself */
+  free(socket_hashtable->table);
   free(socket_hashtable);
 
 }

@@ -48,6 +48,8 @@ fd_channel_node create_channel(char *key){
 		node->next = channel_hashtable->table[slot];
 		channel_hashtable->table[slot] = node;
 	}
+	else
+	  fd_log_w("Channel with name %s already exists\n", key);
 
 	return node;
 }
@@ -147,13 +149,15 @@ void fd_close_channel(char *key){
   fd_channel_watcher current, prev;
   struct ev_loop *loop = EV_DEFAULT;
 
+  printf("Attempting to close channel %s\n", key);
+
   if (node == NULL){
 	fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {
     if (node->watchers == NULL)
-      printf("No current watchers attached to this channel\n");
+      printf("No current watchers attached to channel %s\n", key);
     else {
       prev = node->watchers;
       current = prev->next;
@@ -179,7 +183,7 @@ void fd_close_channel(char *key){
     pr = NULL;
 
     for (ch;
-	 ch->next != NULL && strcmp(ch->next->key, node->key);
+	 ch != NULL && strcmp(ch->key, node->key);
 	 ch = ch->next)
       pr = ch;
     
@@ -187,7 +191,7 @@ void fd_close_channel(char *key){
     if (pr == NULL)
       channel_hashtable->table[slot] = ch->next;
     else
-      ch->next = node->next;
+      prev->next = node->next;
     printf("Removed channel %s node from hashtable\n", node->key);
     free(node);
 
@@ -204,6 +208,7 @@ void close_all_channels(){
       current = current->next;
       for (current; current != NULL; current = current->next){
 	fd_close_channel(prev->key);
+	prev = current;
       }
       fd_close_channel(prev->key);
     }    

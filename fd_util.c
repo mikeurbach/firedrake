@@ -18,7 +18,10 @@ fd_socket_t *fd_socket_new(void){
 
 void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
 	ev_io_stop(loop, &sock->read_w);
+	close_all_channels();
 	fd_socket_close(sock);
+	free(sock->buffer);
+	free(sock->out_buffer);
 	free(sock);
 
 }
@@ -32,9 +35,8 @@ int fd_socket_close(fd_socket_t *sock){
   //  close_all_channels();
   //  fd_close_channel("chatroom");
   
-  /* Change to remove from channels given a sock ID */
+
   remove_from_all_channels(sock->tcp_sock);
-  //  remove_from_channel("chatroom", sock->tcp_sock);
   remove_sock_from_hashtable(sock);
 
   fd_log_i("closing socket with file descriptor: %d\n",sock->tcp_sock);
@@ -73,6 +75,10 @@ fd_socket_t *fd_lookup_socket(int sockid){
 
 	return sock;
 }
+
+/* remove all sockets from hashtable */
+
+
 
 /* Remove socket from hastable */
 void remove_sock_from_hashtable(fd_socket_t *sock){

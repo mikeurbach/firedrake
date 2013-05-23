@@ -37,7 +37,7 @@
 #define MAX_MESSAGE_LEN 4096
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
-#define HASH_SIZE 256
+#define HASH_SIZE 4
 
 /* logging macros */
 
@@ -172,6 +172,7 @@ enum OPCODE {
 
 /* global variables */
 
+FILE* log_file;
 fd_channel_hash channel_hashtable;
 fd_socket_hash socket_hashtable;
 

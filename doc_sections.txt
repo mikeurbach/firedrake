@@ -1,6 +1,6 @@
 logging
 
-all of the logging functions are defined as macros within the underlying C code. all logging messages will appear in the log file "log.fd" in the format of [MESSAGE_TYPE] in [FILE:LINE] <your message>.  all logging is performed in a secondary thread to avoid interrupting the asynchronous i/o of the main event loop.
+all of the logging functions are defined as macros within the underlying C code. all logging messages will appear in the log file "log.fd" in the format of [MESSAGE_TYPE] FILE:LINE <your message>.  all logging is performed in a secondary thread to avoid interrupting the asynchronous i/o of the main event loop.
 
 fd_log_setup
 	if you wish to use the built in logging functions, you must run this macro at the beginning of your server code.  this function opens the logging file which is called  log.fd.	
@@ -85,3 +85,30 @@ void fd_socket_destroy(int sockid)
 	description:
 
 	fd_socket_destroy allows you to close a socket and free its related memory. you provide the id of the socket you wish to destroy, and the function takes care of finding its associated struct, removing it from channels it is in, and freeing its memory.
+
+
+tutorial
+
+#include "fd.h"
+	"fd.h" is the file that contains all of the firedrake function prototypes
+
+void onconnection(fd_socket_t *);
+void ondata(fd_socket_t *, char *);
+void onend(fd_socket_t *);
+void onchannel(fd_socket_t *, char *, int);
+	these are the function prototypes for all of the event types that firedrake supports.
+
+main function:
+
+fd_log_setup;
+	if you wish to use firedrake's logging functionality before you call fd_run, you must use this macro to set up the log file.
+
+if(argc != 2){
+	printf("usage: server <port>\n");
+	exit(1);
+}
+port = atoi(argv[1]);
+	take a command line argument to 
+	
+
+create_channel("chatroom")

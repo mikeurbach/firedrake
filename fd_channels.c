@@ -15,13 +15,13 @@ fd_channel_node lookup_channel(char *key){
 	fd_channel_node node;
 
 	/* check if hashtable has been initialized yet */
-	if(hashtable == NULL)
-		hashtable = init_channels(HASH_SIZE);
+	if(channel_hashtable == NULL)
+		channel_hashtable = init_channels(HASH_SIZE);
 
-	slot = hash(key, hashtable->size);
+	slot = hash(key, channel_hashtable->size);
 
 	/* look through the nodes at this slot */
-	for(node = hashtable->table[slot];
+	for(node = channel_hashtable->table[slot];
 			node != NULL && strcmp(node->key, key);
 			node = node->next)
 		;
@@ -33,7 +33,7 @@ fd_channel_node create_channel(char *key){
 	int slot;
 	fd_channel_node node = lookup_channel(key);
 
-	slot = hash(key, hashtable->size);
+	slot = hash(key, channel_hashtable->size);
 
 	/* only create a channel if it doesn't already exist */
 	if(node == NULL){
@@ -45,12 +45,25 @@ fd_channel_node create_channel(char *key){
 		memset(node->buffer, 0, MAX_MESSAGE_LEN);
 
 		/* put it in the hash table */
-		node->next = hashtable->table[slot];
-		hashtable->table[slot] = node;
+		node->next = channel_hashtable->table[slot];
+		channel_hashtable->table[slot] = node;
 	}
+	else
+	  fd_log_w("Channel with name %s already exists\n", key);
 
 	return node;
 }
+
+
+void remove_from_all_channels(int sockid){
+  fd_socket_t *socket = fd_lookup_socket(sockid);
+  fd_channel_name *current = socket->channel_list;
+
+  for (current; current != NULL; current = current->next)
+    remove_from_channel(current->key, sockid);
+
+}
+
 
 /* remove a socket from channel given a channel name and socket id */
 void remove_from_channel(char *key, int sock){
@@ -84,6 +97,10 @@ void remove_from_channel(char *key, int sock){
       else {
 	prev->next = current->next;
       }
+      
+      /* remove this channel from socket's list of channels */
+      remove_channel_from_sock_list(current->socket, key);   
+
       ev_io_stop(loop, &current->w);
       free(current);
     }
@@ -94,21 +111,108 @@ void remove_from_channel(char *key, int sock){
 }
 
 
+void remove_channel_from_sock_list(fd_socket_t *socket, char *key){
+  fd_channel_name *current, *prev;
 
-void close_channel(char *key){
-  int slot;
+  current = socket->channel_list;
+  prev = NULL;
+
+  /* Find the channel name node matching the key passed in */
+  for(current; 
+      current != NULL && strcmp(current->key, key);
+      current = current->next)
+    prev = current;
+
+  if (current == NULL) {
+    fd_log_w("channel name %s was not found in socket #%d's channel list\n", key, socket->tcp_sock);
+  }
+
+  /* remove this channel node from list of channels */
+  else {
+    fd_log_i("removing channel %s from socket %d's channel list\n", current->key, socket->tcp_sock);
+    if (prev == NULL) {
+      socket->channel_list = current->next;
+    }
+    else {
+      prev->next = current->next;
+    }
+  
+    /* free the channel name struct */
+    free(current);
+
+  }
+}
+
+void fd_close_channel(char *key){
+  int slot = hash(key, channel_hashtable->size);
   fd_channel_node node = lookup_channel(key);
+  fd_channel_watcher current, prev;
+  struct ev_loop *loop = EV_DEFAULT;
 
-  slot = hash(key, hashtable->size);
+  fd_log_i("attempting to close channel %s\n", key);
 
   if (node == NULL){
-	fd_log_e("the node you are attempting to delete does not exist.\n");
+		fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {
-    
-  } 
+    if (node->watchers == NULL){
+      fd_log_w("no current watchers attached to channel %s\n", key);
+		} else {
+      prev = node->watchers;
+      current = prev->next;
 
+      /* go through watchers, remove each from list */
+      for (current; current != NULL; current = current->next){
+      
+				remove_channel_from_sock_list(prev->socket, key);
+
+				ev_io_stop(loop, &prev->w);
+				free(prev);
+				prev = current;
+      }
+
+      /* remove final node after current is null */
+      remove_channel_from_sock_list(prev->socket, key);
+      ev_io_stop(loop, &prev->w);
+      free(prev);
+    }
+
+    /* now release the channel node */
+    fd_channel_node pr, ch = channel_hashtable->table[slot];
+    pr = NULL;
+
+    for (ch;
+				 ch != NULL && strcmp(ch->key, node->key);
+				 ch = ch->next)
+      pr = ch;
+    
+    /* if prev is null, channel node is first in slot  */
+    if (pr == NULL)
+      channel_hashtable->table[slot] = ch->next;
+    else
+      prev->next = node->next;
+    fd_log_i("removed channel %s node from hashtable\n", node->key);
+    free(node);
+
+  }
+} 
+
+void close_all_channels(){
+  fd_channel_node current, prev;
+  for(int i = 0; i < channel_hashtable->size; i++){
+    current = channel_hashtable->table[i];
+    /* if slot in hashtable has channel node, remove all channels */
+    if (current != NULL){
+      prev = current;
+      current = current->next;
+      for (current; current != NULL; current = current->next){
+	fd_close_channel(prev->key);
+	prev = current;
+      }
+      fd_close_channel(prev->key);
+    }    
+  }
 }
 
 
@@ -164,6 +268,12 @@ void fd_join_channel(fd_socket_t *socket, char *key,
 	/* add the watcher to the channel's list of watchers */
 	watcher->next = channel->watchers;
 	channel->watchers = watcher;
+
+	/* add channel to list of channels for this socket */
+	fd_channel_name *new_channel = malloc(sizeof(fd_channel_name));
+	new_channel->key = strdup(key);
+	new_channel->next = socket->channel_list;
+	socket->channel_list = new_channel;
 
 	/* bind the watcher to EV_CUSTOM events */
 	ev_io_init(&watcher->w, fd_channel_listener, watcher->tcp_sock, EV_READ);

@@ -51,14 +51,18 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	ev_io_init(&server->read_w, accept_callback, listenfd, EV_READ);
 	ev_io_start(loop, &server->read_w);
 
-	/* check if the hashtable has been initialzed yet */
-	if(hashtable == NULL)
-		hashtable = init_channels(HASH_SIZE);
+	/* check if the channel hashtable has been initialzed yet */
+	if(channel_hashtable == NULL)
+		channel_hashtable = init_channels(HASH_SIZE);
 
 	/* setup logging */
 	log_file = fopen(LOG_FILE,"a");								
 	log_queue = qopen();
 	pthread_create(log_thread, NULL, fd_log, NULL);
+
+	/* check if the socket hashtable has been initialzed yet */
+	if(socket_hashtable == NULL)
+		socket_hashtable = init_socket_hashtable(HASH_SIZE);
 	
 	/* Initialive watcher to catch SIGINT to close gracefully */
 	ev_signal_init(&sigint_w, fd_close, SIGINT);
@@ -76,10 +80,13 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 
   /* close all channels */
-  fd_log_m("Closing gracefully\n");
+
+  //  fd_close_channel("chatroom");
+  close_all_channels();
+
+  fd_log_m("closing gracefully\n");
 
   /* close all open sockets */
-
 
   /* end the event loop */
   ev_break(loop, EVBREAK_ALL);
@@ -214,13 +221,16 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 
 	fd_log_m("handshake completed with connection %d...\n", client->tcp_sock);
 
-	/* stop waiting for a handshake write, initialize echo read */
+	/* stop waiting for a handshake write, initialize read */
 	ev_io_stop(loop, &client->write_w);
 
 	client->just_opened = 1;
 	client->buffer = realloc(client->buffer, MAX_HEADER_LEN);
 	memset(client->buffer, 0, MAX_HEADER_LEN);
 	client->recvs = 0;
+
+	/* Now that handshake was completed, add new socket to hastbale */
+	add_sock_to_hashtable(client);
 	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->read_w);
 }

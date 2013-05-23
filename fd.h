@@ -40,9 +40,10 @@
 #define MAX_LOG_LINE 256
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
-#define HASH_SIZE 256
+#define HASH_SIZE 4
 
 /* structs */
+typedef struct _fd_channel_name fd_channel_name;
 typedef struct _fd_socket_t fd_socket_t;
 struct _fd_socket_t {
 	ev_io read_w;
@@ -68,6 +69,8 @@ struct _fd_socket_t {
 	void *data;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
+  fd_socket_t *next;
+  fd_channel_name *channel_list;
 	void (*end_cb)(fd_socket_t *socket);
 };
 
@@ -90,10 +93,29 @@ struct _fd_channel_node {
 	fd_channel_node next;
 };
 
+
+struct _fd_channel_name {
+  char *key;
+  fd_channel_name *next;
+};
+
 typedef struct _fd_channel_hash *fd_channel_hash;
 struct _fd_channel_hash {
 	int size;
 	fd_channel_node *table;
+};
+
+typedef struct _fd_socket_hash *fd_socket_hash;
+struct _fd_socket_hash {
+	int size;
+	fd_socket_t **table;
+};
+
+
+/* enum our own custom event types */
+enum EVENT {
+	FD_READ,
+	FD_WRITE
 };
 
 /* enum the opcodes for the data framing */
@@ -161,9 +183,10 @@ enum LOG_LEVEL {
 
 
 /* global variables */
-fd_channel_hash hashtable;
 FILE* log_file;
 void *log_queue;
+fd_channel_hash channel_hashtable;
+fd_socket_hash socket_hashtable;
 
 /* handshaking function definitions */
 int handshake(int);
@@ -186,11 +209,15 @@ void fd_channel_listener(struct ev_loop *, ev_io *, int);
 fd_channel_hash init_channels(int );
 fd_channel_node lookup_channel(char *);
 fd_channel_node create_channel(char *);
+void remove_from_channel(char *, int);
 int fd_broadcast(fd_socket_t *, char *, char *, int);
-void remove_from_channel(char *key, int sock);
-void fd_join_channel(fd_socket_t *, char *, void (*)(fd_socket_t *, char *, int));
-void (*cb)(fd_socket_t *, char *, int);
-int hash(char *s, int size);
+void fd_channel_listener(struct ev_loop *, ev_io *, int);
+void remove_from_all_channels(int);
+void fd_join_channel(fd_socket_t *, char *, void (*cb)(fd_socket_t *, char *, int));
+int hash(char *, int);
+void remove_channel_from_sock_list(fd_socket_t *, char *);
+void fd_close_channel(char *);
+void close_all_channels();
 
 /* firedrake function definitions */
 int fd_ondata(fd_socket_t *, void(*)(char *));
@@ -198,12 +225,18 @@ int fd_run(int, void(*)(fd_socket_t *));
 int fd_send(fd_socket_t *, char *, int);
 void fd_strcat(char *, char *, int);
 int fd_recv(fd_socket_t *, char *);
+
+/* util function definitions */
 fd_socket_t *fd_socket_new(void);
 void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
 int fd_socket_close(fd_socket_t *);
 void fd_close(struct ev_loop *, ev_signal *, int);
 void fd_log_write(int level, char *file, int line, char *fmt, ...);
 void *fd_log(void *);
+void add_sock_to_hashtable(fd_socket_t *);
+void remove_sock_from_hashtable(fd_socket_t *);
+fd_socket_t *fd_lookup_socket(int);
+fd_socket_hash init_socket_hashtable(int);
 
 #endif
 

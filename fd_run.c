@@ -2,6 +2,10 @@
 #include "ev.c"
 #include "fd.h"
 
+void fd_test(){
+	printf("hello, from python\n");
+}
+
 int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, optval, flags;
   fd_socket_t *server = malloc(sizeof(fd_socket_t));

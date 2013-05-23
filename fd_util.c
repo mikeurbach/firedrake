@@ -17,7 +17,6 @@ fd_socket_t *fd_socket_new(void){
 
 void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
 	ev_io_stop(loop, &sock->read_w);
-	close_all_channels();
 	fd_socket_close(sock);
 	free(sock->buffer);
 	free(sock->out_buffer);
@@ -82,9 +81,13 @@ void fd_log_write(int level, char *file, int line, char *fmt, ...){
 void *fd_log(void *data){
 	char *line;
 
-	while(1)
-		while( (line = (char *) qget(log_queue)) != NULL )
+	while(1){
+		while( (line = (char *) qget(log_queue)) != NULL ){
+			printf("writing to log\n");
 			fprintf(log_file, line);
+			fflush(log_file);
+		}
+	}
 }
 
 /* create and return a blank hash table, given a size */

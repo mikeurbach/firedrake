@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -std=gnu99 -Ilibev
+CFLAGS = -g -std=gnu99 -Ilibev -fPIC
 
 all: ev
 
@@ -26,6 +26,12 @@ obj_client: fd.h client.c
 ev: obj_ev
 	$(CC) $(CFLAGS) -o server server.o fd_util.o fd_run.o fd_send.o base64.o queue.o fd_recv.o fd_channels.o -lpthread -lssl -lcrypto
 
+lib: obj_ev
+	$(CC) -shared $(CFLAGS) -o libfiredrake.so fd_util.o fd_run.o fd_send.o base64.o queue.o fd_recv.o fd_channels.o -lpthread -lssl -lcrypto
+	PYTHONPATH=$$PYTHONPATH./pybindgen python firedrake.py > firedrake_binding.c
+	$(CC) $(CFLAGS) -I/usr/include/python2.7 -c -o firedrake_binding.o firedrake_binding.c
+	gcc -shared -L. -o firedrake.so firedrake_binding.o -lpython2.7 -lfiredrake
+
 legacy: obj_legacy
 	$(CC) $(CFLAGS) -o server server.o fd_send.o base64.o fd_recv.o -lpthread -lssl -lcrypto
 
@@ -43,6 +49,7 @@ test:
 	$(CC) $(CFLAGS) -o server server.o fd_util.o fd_run.o fd_send.o base64.o fd_recv.o fd_channels.o -lpthread -lssl -lcrypto
 
 clean:
-	rm -f server client *.o
+	rm -f server client *.o *.so
 	rm -f *~ *#
 	rm -f *.fd
+	rm -f firedrake_binding.c

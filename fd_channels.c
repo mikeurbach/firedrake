@@ -169,7 +169,6 @@ void fd_close_channel(char *key){
 				remove_channel_from_sock_list(prev->socket, key);
 
 	ev_io_stop(loop, &prev->w);
-	free(prev->key);
 	free(prev->buffer);
 	free(prev);
 	prev = current;
@@ -194,7 +193,7 @@ void fd_close_channel(char *key){
     if (pr == NULL)
       channel_hashtable->table[slot] = ch->next;
     else
-      prev->next = node->next;
+      pr->next = node->next;
     fd_log_i("removed channel %s node from hashtable\n", node->key);
     free(node);
 

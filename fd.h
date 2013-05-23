@@ -111,6 +111,11 @@ struct _fd_socket_hash {
 	fd_socket_t **table;
 };
 
+/* typedefs for pybindgen */
+/* typedef void (*AcceptCallback) (struct _fd_socket_t *); */
+/* typedef void (*DataCallback) (struct _fd_socket_t *, char *); */
+/* typedef void (*EndCallback) (struct _fd_socket_t *); */
+/* typedef void (*ChannelCallback) (struct _fd_socket_t *, char *, int); */
 
 /* enum our own custom event types */
 enum EVENT {
@@ -237,6 +242,7 @@ void add_sock_to_hashtable(fd_socket_t *);
 void remove_sock_from_hashtable(fd_socket_t *);
 fd_socket_t *fd_lookup_socket(int);
 fd_socket_hash init_socket_hashtable(int);
+void fd_test(void);
 
 #endif
 

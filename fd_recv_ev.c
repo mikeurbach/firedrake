@@ -3,7 +3,7 @@
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
 
-static void unmask_payload(char* data, uint64_t len, uint32_t key);
+static void unmask_payload(char*, uint64_t, uint32_t);
 
 int fd_recv(fd_socket_t *sock, char *buff){
 
@@ -11,9 +11,10 @@ int fd_recv(fd_socket_t *sock, char *buff){
 }
 
 static void unmask_payload(char* data, uint64_t len, uint32_t key){
+	int i;
   uint8_t	octet;
 
-  for(int i = 0; i < len; i++){
+  for(i = 0; i < len; i++){
     switch (i % 4){
     case 0: octet = (key & 0xFF);
       break;
@@ -66,38 +67,56 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
 	assert_event(EV_READ);
 
-  /* increment recv count */
-  socket->recvs += 1;
+	/* if it's the first call, receive enough to get the payload size */
+	if(socket->bytes_received < MAX_HEADER_LEN){
+		/* call recv once, saving the byte count received in status */
+		if((status = 
+				recv(socket->tcp_sock, 
+						 socket->buffer + socket->bytes_received, 
+						 MAX_HEADER_LEN,
+						 0)) < 0){
+			/* since we're nonblocking, these are ok */
+			if(errno != EAGAIN && errno != EWOULDBLOCK){
+				perror(__FILE__);
+				exit(errno);
+			}
+    
+			fd_log_w("recv invoked, but returned EAGAIN or EWOULDBLOCK\n"); 
 
-  /* call recv once, saving the byte count received in status */
-  if((status = 
-      recv(socket->tcp_sock, 
-					 socket->buffer + socket->bytes_received, 
-					 MAX_HEADER_LEN + MAX_MESSAGE_LEN - socket->bytes_received, 
-					 0)) < 0){
-    /* since we're nonblocking, these are ok */
-    if(errno != EAGAIN && errno != EWOULDBLOCK){
-      perror(__FILE__);
-      exit(errno);
-    }
-    printf("fd_recv_nb invoked, but recv returned EAGAIN or EWOULDBLOCK\n");
-    return;
-  }
+			return;
+		}
+	} 
+	/* now we know how big the buffer is */
+	else {
+		/* call recv once, saving the byte count received in status */
+		if((status = 
+				recv(socket->tcp_sock, 
+						 socket->buffer + socket->bytes_received, 
+						 socket->bytes_expected - socket->bytes_received,
+						 0)) < 0){
+			/* since we're nonblocking, these are ok */
+			if(errno != EAGAIN && errno != EWOULDBLOCK){
+				perror(__FILE__);
+				exit(errno);
+			}
+    
+			fd_log_w("recv invoked, but returned EAGAIN or EWOULDBLOCK\n"); 
 
+			return;
+		}
+	}
 
-  //  printf("fd_recv_nb: socket->just_opened = %d\n", socket->just_opened);
-  /* If status == 0, socket has recevied a close signal so we close the socket*/
-  //  if (socket->just_opened == 0 && status == 0) { 
   if (status == 0) {
     fd_socket_destroy(socket, loop);
     return;
-
   }
 
+  /* increment recv count */
+  socket->recvs += 1;
   socket->just_opened = 0;
+  
+  fd_log_i("bytes received in call #%d: %d\n",socket->recvs, status); 
 
-
-  printf("Bytes received in call #%d: %d\n",socket->recvs, status);
   /* update the number of received bytes on the socket */
   socket->bytes_received += status;
 
@@ -124,32 +143,38 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
       is_masked = (temp & 0x80) >> 7;
       payload_len = temp & 0x7F;
+      
+      fd_log_d("is_masked val: %d\n",is_masked); 
 
-      printf("Server: Is masked val: %d\n",is_masked);
+			/* save the opcode and fin bit */
+			socket->fin = fin;
+			socket->opcode = opcode;
 
       /* assign the header_len on the socket */
       if(is_masked){
-	if(payload_len < PAYLOAD_EXT_16)
-	  socket->header_len = 6;
-	else if(payload_len == PAYLOAD_EXT_16)
-	  socket->header_len = 8;
-	else if(payload_len == PAYLOAD_EXT_64)
-	  socket->header_len = 14;
-	else
-	  /* what the hell is going on if we're here? */
-	  printf("%s: unknown payload length\n", __FILE__);
-      } else {
-	/* why would it not be masked? 
-	   i guess we should still do this */
-	if(payload_len < PAYLOAD_EXT_16)
-	  socket->header_len = 2;
-	else if(payload_len == PAYLOAD_EXT_16)
-	  socket->header_len = 4;
-	else if(payload_len == PAYLOAD_EXT_64)
-	  socket->header_len = 10;
-	else
-	  /* what the hell is going on if we're here? */
-	  printf("%s: unknown payload length\n", __FILE__);
+				if(payload_len < PAYLOAD_EXT_16)
+					socket->header_len = 6;
+				else if(payload_len == PAYLOAD_EXT_16)
+					socket->header_len = 8;
+				else if(payload_len == PAYLOAD_EXT_64)
+					socket->header_len = 14;
+				else{
+					/* what the hell is going on if we're here? */
+					fd_log_c("unknown payload length in the websocket header and the data is not masked, \"WHAT THE HELL IS GOING ON OUT HERE?\"\n");		
+				} 
+      } else{
+				/* why would it not be masked? 
+					 I guess we should still do this */
+				if(payload_len < PAYLOAD_EXT_16)
+					socket->header_len = 2;
+				else if(payload_len == PAYLOAD_EXT_16)
+					socket->header_len = 4;
+				else if(payload_len == PAYLOAD_EXT_64)
+					socket->header_len = 10;
+				else{
+					/* what the hell is going on if we're here? */
+					fd_log_c("unknown payload length in the websocket header and the data is not masked, \"WHAT THE HELL IS GOING ON OUT HERE?\"\n");		
+				}
       }
     }
 		
@@ -165,106 +190,122 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
       /* determine payload length */
       if(payload_len < PAYLOAD_EXT_16){
-	socket->bytes_expected = payload_len + socket->header_len;
-	offset = 2;
+				socket->bytes_expected = payload_len + socket->header_len;
+				offset = 2;
       }
-      else if(payload_len == PAYLOAD_EXT_16){
-	/* scan 2 bytes out of the buffer */
-	ext_payload_len1 = 0;
-	for(i = 0; i < 2; i++){
-	  byte = *(socket->buffer + 2 + i);
-	  temp1 = (uint16_t) byte & 0xFF;
-	  temp1 = temp1 << (8 - (8*i));
-	  ext_payload_len1 |= temp1;
-	}
+			else if(payload_len == PAYLOAD_EXT_16){
+				/* scan 2 bytes out of the buffer */
+				ext_payload_len1 = 0;
+				for(i = 0; i < 2; i++){
+					byte = *(socket->buffer + 2 + i);
+					temp1 = (uint16_t) byte & 0xFF;
+					temp1 = temp1 << (8 - (8*i));
+					ext_payload_len1 |= temp1;
+				}
 
-	socket->bytes_expected = ext_payload_len1 + socket->header_len;
-	offset = 4;
+				socket->bytes_expected = ext_payload_len1 + socket->header_len;
+				offset = 4;
       }
       else if(payload_len == PAYLOAD_EXT_64){
-	/* scan 8 bytes out of the buffer */
-	ext_payload_len2 = 0;
-	for(i = 0; i < 8; i++){
-	  byte = *(socket->buffer + 2 + i);
-	  temp2 = (uint64_t) byte & 0xFF;
-	  temp2 = temp2 << (56 - (8*i));
-	  ext_payload_len2 |= temp2;
+				/* scan 8 bytes out of the buffer */
+				ext_payload_len2 = 0;
+				for(i = 0; i < 8; i++){
+					byte = *(socket->buffer + 2 + i);
+					temp2 = (uint64_t) byte & 0xFF;
+					temp2 = temp2 << (56 - (8*i));
+					ext_payload_len2 |= temp2;
+				}
+
+				socket->bytes_expected = ext_payload_len2 + socket->header_len;
+				offset = 10;
+      }
+			
+			/* adjust the buffer size appropriately */
+			socket->buffer = realloc(socket->buffer, socket->bytes_expected + 1);
+			if(socket->buffer == NULL){
+				/* handle the error */
+			}
+			memset(socket->buffer + socket->bytes_received, 0, 
+						 socket->bytes_expected - socket->bytes_received);
+
+			/* save the mask key */
+			if(is_masked){
+				mask_key = 0;
+				for(i = 0; i < 4; i++){
+					byte = *(socket->buffer + offset + i);
+					temp3 = (uint32_t) byte & 0xFF;
+					temp3 = temp3 << (24 - (8*i));
+					mask_key |= temp3;
+				}
+
+				/* Reverse order of the mask */
+				mask_key = 
+					(0xFF000000 & (mask_key << 24)) | 
+					(0x00FF0000 & (mask_key << 8)) | 
+					(0x0000FF00 & (mask_key >> 8)) | 
+					(0x000000FF & (mask_key >> 24));
+
+				socket->mask_key = mask_key;
+				socket->mask_start = 0;
+			}
+		}
 	}
 
-	socket->bytes_expected = ext_payload_len2 + socket->header_len;
-	offset = 10;
-      }
+  fd_log_i("total bytes_received: %d\n",(int) socket->bytes_received);
+  fd_log_i("total bytes_expected: %d\n",(int) socket->bytes_expected);
 
-      /* save the mask key */
-      if(is_masked){
-	mask_key = 0;
-	for(i = 0; i < 4; i++){
-	  byte = *(socket->buffer + offset + i);
-	  temp3 = (uint32_t) byte & 0xFF;
-	  temp3 = temp3 << (24 - (8*i));
-	  mask_key |= temp3;
-	}
-				
-	/* Reverse order of the mask */
-	mask_key = (0xFF000000 & (mask_key << 24)) | (0x00FF0000 & (mask_key << 8)) | 
-	  (0x0000FF00 & (mask_key >> 8)) | (0x000000FF & (mask_key >> 24));
+	 /* if we have received the full payload */
+	if(socket->bytes_received == socket->bytes_expected){
+		 socket->buffer[socket->bytes_expected] = '\0';
 
-	socket->mask_key = mask_key;
-      }
-    }
-  }
+		 fd_log_i("done receiving\n");
 
+		 /* unmask the payload */
+		 if(socket->mask_key){		  
+			 unmask_payload(socket->buffer + socket->header_len,
+											socket->bytes_received - socket->header_len,
+											socket->mask_key);
+		 }
 
-  printf("Total bytes_received: %d\n",socket->bytes_received);
-  printf("Total bytes_expected: %d\n",socket->bytes_expected);
-  /* printf("Opcode: %d\n", opcode); */
+		 /* handle the different known opcodes */
+		 switch(socket->opcode){
+		 case TEXT:
+		 case BINARY:
+		 case CONTINUATION:
+			 /* notify the "data available" callback that the recv is done */
+			 socket->data_cb(socket, socket->buffer + socket->header_len);
+			 break;
+		 case PING:
+			 /* send a pong */
+			 status = fd_send(socket, socket->buffer, PONG);
+			 break;
+		 case PONG:
+			 /* check APPLICATION data is the same as in the PING (how?) */
+			 break;
+		 case CONNECTION_CLOSE:
+			 /* send a matching CLOSE message and close the socket gracefully */
+			 fd_log_i("close message received\n");
+			 status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
+			 fd_socket_destroy(socket, loop);
+			 break;
+		 }
 
-  /* if we have received the full payload */
-  if(socket->bytes_received == socket->bytes_expected){
-	  printf("Done receiving\n");
+		 /* if this is the final message in a fragment, 
+				and the whole thing fit in the buffer */
+		 if(socket->fin)
+			 socket->end_cb(socket);
 
-    /* unmask the payload */
-    if(socket->mask_key){		  
-      /* offset is the number of bytes needer for payload length */
-      unmask_payload(socket->buffer + socket->header_len,
-		     socket->bytes_received - socket->header_len,
-		     socket->mask_key);
-    }
-
-    //		printf("fd_recv_nb: unmasked data is \"%s\"\n", socket->buffer + socket->header_len);
-
-    if(opcode == PING){
-      /* send a pong */
-      status = fd_send(socket, socket->buffer, PONG);
-    }
-    else if(opcode == PONG){
-      /* check to make sure APPLICATION data is the same as was in the PING (how?) */
-    }
-    else if(opcode == CONNECTION_CLOSE){
-      /* send a matching CLOSE message and close the socket gracefully (fd_close function?) */
-      printf("Close message received\n");
-      status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
-      //		  fd_socket_destroy(socket, loop);
-    }
-
-    //		printf("Receives: %d\n",socket->recvs);
-		
-
-
-    /* printf("About to send with header_len: %d\n", socket->header_len); */
-    //		printf("Buffer is: %s\n", socket->buffer + socket->header_len);
-
-    /* fd_send(socket, socket->buffer + socket->header_len, TEXT); */
-		
-    /* notify the "data available" callback that the recv is done */
-		socket->data_cb(socket, socket->buffer + socket->header_len);
-
-    /* Reset data in socket struct to get ready for next recv */
-    memset(socket->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
-    socket->recvs = 0;
-    socket->bytes_expected = 0;
-    socket->bytes_received = 0;
-    socket->header_len = 0;
-    socket->mask_key = 0;
+		 /* Reset data in socket struct to get ready for next recv */
+		 socket->buffer = realloc(socket->buffer, MAX_HEADER_LEN);
+		 if(socket->buffer == NULL){
+			 /* handle the error */
+		 }
+		 memset(socket->buffer, 0, MAX_HEADER_LEN);
+		 socket->recvs = 0;
+		 socket->bytes_expected = 0;
+		 socket->bytes_received = 0;
+		 socket->header_len = 0;
+		 socket->mask_key = 0;
+		 socket->mask_start = 0;
   }
 }

@@ -41,6 +41,8 @@ fd_channel_node create_channel(char *key){
 		node = malloc(sizeof(struct _fd_channel_node));
 		memset(node, 0, sizeof(struct _fd_channel_node));
 		node->key = strdup(key);
+		node->buffer = malloc(MAX_MESSAGE_LEN);
+		memset(node->buffer, 0, MAX_MESSAGE_LEN);
 
 		/* put it in the hash table */
 		node->next = channel_hashtable->table[slot];
@@ -80,12 +82,13 @@ void remove_from_channel(char *key, int sock){
     
 
     if (current == NULL) {
-      printf("Socket with sockid %d was not found in channel with name: %s\n", sock, key);
+    	fd_log_e("socket with sockid %d was not found in channel with name: %s\n", sock, key);
     }
 
     /* remove watcher from list of watchers in channel */
     else {
-      printf("Removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
+    	fd_log_i("removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
+    	
       if (prev == NULL) {
 	node->watchers = current->next;
       }
@@ -100,8 +103,9 @@ void remove_from_channel(char *key, int sock){
       free(current);
     }
   }
-  else
-    printf("Node for channel with name %s was null\n", key);
+  else{
+	fd_log_e("node for channel with name %s was null\n", key);
+  }
 }
 
 
@@ -144,7 +148,7 @@ void fd_close_channel(char *key){
   struct ev_loop *loop = EV_DEFAULT;
 
   if (node == NULL){
-    printf("The node you are attempting to delete does not exist.\n");
+	fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {
@@ -216,10 +220,16 @@ int fd_broadcast(fd_socket_t *socket, char *key, char *buffer,
 	fd_channel_watcher node;
 	struct ev_loop *loop = EV_DEFAULT;
 
+	channel->buffer = realloc(channel->buffer, strlen(buffer) + 1);
 	fd_strcat(channel->buffer, buffer, 0);
 
+	/* loop through all the watchers in this channel */
 	for(counter = 0, node = channel->watchers; node != NULL; 
 			counter++, node = node->next){
+		/* realloc may have changed this channel's buffer's location */
+		node->buffer = channel->buffer;
+
+		/* if it's not ourself, use libev to send the message */
 		if(node->socket != socket){
 			node->msg_type = msg_type;
 			ev_feed_event(loop, &node->w, EV_CUSTOM);

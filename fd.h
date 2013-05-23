@@ -9,7 +9,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -29,15 +28,42 @@
 #endif
 
 /* defines */
+#define LOG_FILE "log.fd"
 #define LISTENQ 20 /*maximum number of client connections*/
 #define HEADERKEY "Sec-WebSocket-Key"
 #define MAGICSTRING "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define MIN_HEADER_LEN 6
 #define MAX_HEADER_LEN 14
-#define MAX_MESSAGE_LEN 100000
+#define MAX_MESSAGE_LEN 4096
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
 #define HASH_SIZE 256
+
+/* logging macros */
+
+/* open logging file */
+#define fd_log_setup {log_file = fopen(LOG_FILE,"a");}
+
+/*close logging file*/
+#define fd_log_close {fclose(log_file);}
+
+/* debug log */
+#define fd_log_d(...) {fprintf(log_file, "[DEBUG] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* info log */
+#define fd_log_i(...) {fprintf(log_file, "[INFO] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* message log */
+#define fd_log_m(...) {fprintf(log_file, "[MESSAGE] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	
+
+/* warning log */  	  	  	  	  	  
+#define fd_log_w(...) {fprintf(log_file, "[WARNING] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+
+/* critical log */  	  	  	  	  	  
+#define fd_log_c(...) {fprintf(log_file, "[CRITICAL] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
+  	  	  	  	  	  
+/* error log */
+#define fd_log_e(...) {fprintf(log_file, "[ERROR] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	  	  	  	  	  
 
 /* structs */
 typedef struct _fd_channel_name fd_channel_name;
@@ -51,19 +77,24 @@ struct _fd_socket_t {
 	uint64_t bytes_outgoing;
 	uint64_t bytes_sent;
 	int header_len;
+	int fin;
+	int opcode;
 	uint32_t mask_key;
-	char buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
-	char out_buffer[MAX_HEADER_LEN + MAX_MESSAGE_LEN];
+	int mask_start;
+	char *buffer;
+	char *out_buffer;
 	unsigned int last_recv_opcode;
 	bool is_open;
   int just_opened;
   int recvs;
 	int sends;
 	int event;
+	void *data;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
   fd_socket_t *next;
   fd_channel_name *channel_list;
+	void (*end_cb)(fd_socket_t *socket);
 };
 
 typedef struct _fd_channel_watcher *fd_channel_watcher;
@@ -81,7 +112,7 @@ typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
 	fd_channel_watcher watchers;
 	char *key;
-	char buffer[MAX_MESSAGE_LEN];
+	char *buffer;
 	fd_channel_node next;
 };
 
@@ -140,6 +171,7 @@ enum OPCODE {
 
 
 /* global variables */
+
 fd_channel_hash channel_hashtable;
 fd_socket_hash socket_hashtable;
 
@@ -167,12 +199,13 @@ void remove_from_channel(char *, int);
 int fd_broadcast(fd_socket_t *, char *, char *, int);
 void fd_channel_listener(struct ev_loop *, ev_io *, int);
 void remove_from_all_channels(int);
-void fd_join_channel(fd_socket_t *, char *, 
-										 void (*cb)(fd_socket_t *, char *, int));
+void fd_join_channel(fd_socket_t *, char *, void (*cb)(fd_socket_t *, char *, int));
 int hash(char *, int);
 void remove_channel_from_sock_list(fd_socket_t *, char *);
 void fd_close_channel(char *);
 void close_all_channels();
+int hash(char *s, int size);
+
 
 /* firedrake function definitions */
 int fd_ondata(fd_socket_t *, void(*)(char *));

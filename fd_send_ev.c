@@ -5,12 +5,10 @@
 #include "fd.h"
 
 int fd_send(fd_socket_t *sock, char *buff, int opcode){
-	struct ev_loop *loop = EV_DEFAULT;
+  struct ev_loop *loop = EV_DEFAULT;
   unsigned long long header, mask;
   int i = 0, skip, buf_size = strlen(buff);
   char val;
-  
-	memset(sock->out_buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN + 1);
 
   /* first 4 bits (FIN, RSV1-3) are always 0  */
   /* next 4 bits are opcode, we use 0x1 for text frame  */
@@ -18,6 +16,10 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
   
   /* use payload length to determine payload length bits  */
   if (buf_size <= 125) {
+		/* malloc our output buffer */
+		sock->out_buffer = malloc(buf_size + 3);
+		memset(sock->out_buffer, 0, buf_size);
+
     /* data length bits are just the size */
     header = header | ((0x7F & buf_size) << 8);
 
@@ -36,6 +38,10 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 		skip = 2;
   } 
   else if (buf_size <= 65535){
+		/* malloc our output buffer */
+		sock->out_buffer = malloc(buf_size + 5);
+		memset(sock->out_buffer, 0, buf_size);
+
     /* first append the data length to indicate 16 bit length coming */
     header = header | 0x7E00;
 
@@ -63,6 +69,12 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 		skip = 4;
   }
   else {
+		int j;
+
+		/* malloc our output buffer */
+		sock->out_buffer = malloc(buf_size + 11);
+		memset(sock->out_buffer, 0, buf_size);
+
     /* first append the data length to indicate 64 bit length coming */
     header = header | 0x7F00;
 
@@ -84,7 +96,7 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 
 		/* 8 bytes for message length */
 		mask = 0xFF00000000000000;
-		int j;
+
 		for(j=56;j >= 0; j = j - 8) {
 			val = (char)((header & mask) >> j);
 			sock->out_buffer[i++] = val;
@@ -97,7 +109,6 @@ int fd_send(fd_socket_t *sock, char *buff, int opcode){
 
   /* prepend header to buffer */
   fd_strcat(sock->out_buffer, buff, skip);
-  /* printf("buff_to_send: %s\n",buff_to_send);  */
 
 	sock->bytes_outgoing = strlen(buff) + skip;
 	sock->bytes_sent = 0;
@@ -126,16 +137,20 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 				perror(__FILE__);
 				return;
 			}
-			printf("fd_send_nb invoked, but send returned EAGAIN or EWOULDBLOCK\n");
+			
+			fd_log_w("send invoked, but returned EAGAIN or EWOULDBLOCK\n");
 		}
 		
 		socket->bytes_sent += status;
 		++socket->sends;
-		printf("Bytes sent in call #%d: %d\n" 
-					 "Total bytes_sent: %d\n"
-					 "Total bytes_outgoing: %d\n",
+		
+		fd_log_i("bytes sent in call #%d: %d\n" 
+					 "	Total bytes_sent: %d\n"
+					 "	Total bytes_outgoing: %d\n",
 					 socket->sends, status, 
-					 socket->bytes_sent, socket->bytes_outgoing);
+					 (int) socket->bytes_sent, (int) socket->bytes_outgoing);
+		
+
 	}
 
 	/* once we've sent everything */
@@ -143,9 +158,9 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 		/* unplug from the event loop */
 		ev_io_stop(loop, &socket->write_w);
 		
-		printf("Done sending\n");
+		fd_log_i("done sending\n");
 
-		memset(socket->out_buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+		free(socket->out_buffer);
 		socket->bytes_outgoing = 0;
 		socket->bytes_sent = 0;
 		socket->sends = 0;

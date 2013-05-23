@@ -4,7 +4,7 @@
 
 int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, optval, flags;
-	fd_socket_t *server = malloc(sizeof(fd_socket_t));
+  fd_socket_t *server = malloc(sizeof(fd_socket_t));
   struct sockaddr_in servaddr;
   struct ev_loop *loop = EV_DEFAULT;
   ev_signal sigint_w;
@@ -62,11 +62,10 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	ev_signal_init(&sigint_w, fd_close, SIGINT);
 	ev_signal_start(loop, &sigint_w);
 
-	printf("Event loop started, waiting for connections...\n");
+	fd_log_i("Event loop started, waiting for connections...\n");
+	
 	/* start the loop */
 	ev_run(loop, 0);
-
-
 
 	return 0;
 }
@@ -77,14 +76,21 @@ void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
   printf("\nClosing gracefully\n");
 
   /* close all channels */
+
   //  fd_close_channel("chatroom");
   close_all_channels();
+
+  fd_log_m("Closing gracefully\n");
+
 
   /* close all open sockets */
 
 
   /* end the event loop */
   ev_break(loop, EVBREAK_ALL);
+  
+  /* close the log file */
+  fd_log_close;
 }
 
 void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
@@ -100,16 +106,20 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("accept_callback invoked, but accept returned EAGAIN or EWOULDBLOCK\n");
+		
+		fd_log_w("callback invoked, but accept returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+
 		return;
 	}
 
-	printf("Connection %d accepted...\n", connfd);
+	fd_log_m("connection %d accepted...\n", connfd);
 
 	/* set up our client struct */
 	client = malloc(sizeof(fd_socket_t));
 	memset(client, 0, sizeof(fd_socket_t));
 	client->tcp_sock = connfd;
+	client->buffer = malloc(MAX_MESSAGE_LEN);
+	memset(client->buffer, 0, MAX_MESSAGE_LEN);
 
 	/* invoke the user's callback on the fresh socket, 
 	   before the handshake has begun */
@@ -133,7 +143,9 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("handshake_callback_r invoked, but recv returned EAGAIN or EWOULDBLOCK\n");
+		
+		fd_log_w("callback invoked, but recv returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+
 		return;
 	}
 
@@ -168,7 +180,7 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 		"Connection: Upgrade\r\n"										\
 		"Sec-WebSocket-Accept: ";
 
-	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n");
+	resplen = strlen(headers) + strlen(encoded) + strlen("\r\n\r\n") + 1;
 	response = malloc(resplen);
 	memset(response, 0, resplen);
 	strcpy(response, headers);
@@ -196,17 +208,20 @@ void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 			perror(__FILE__);
 			exit(errno);
 		}
-		printf("handshake_callback_w invoked, but send returned EAGAIN or EWOULDBLOCK\n");
+
+		fd_log_w("callback invoked, but send returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+
 		return;
 	}
 
-	printf("Handshake completed with connection %d...\n", client->tcp_sock);
+	fd_log_m("handshake completed with connection %d...\n", client->tcp_sock);
 
 	/* stop waiting for a handshake write, initialize read */
 	ev_io_stop(loop, &client->write_w);
 
 	client->just_opened = 1;
-	memset(client->buffer, 0, MAX_HEADER_LEN + MAX_MESSAGE_LEN);
+	client->buffer = realloc(client->buffer, MAX_HEADER_LEN);
+	memset(client->buffer, 0, MAX_HEADER_LEN);
 	client->recvs = 0;
 
 	/* Now that handshake was completed, add new socket to hastbale */

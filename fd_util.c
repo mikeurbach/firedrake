@@ -26,20 +26,24 @@ void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
 /* Remove from channel list and from socket dict */
 int fd_socket_close(fd_socket_t *sock){
 
+
   printf("Closing socket #: %d\n",sock->tcp_sock);
 
   //  close_all_channels();
   //  fd_close_channel("chatroom");
   
-
   /* Change to remove from channels given a sock ID */
   remove_from_all_channels(sock->tcp_sock);
   //  remove_from_channel("chatroom", sock->tcp_sock);
   remove_sock_from_hashtable(sock);
+
+  fd_log_i("closing socket with file descriptor: %d\n",sock->tcp_sock);
+
   sock->is_open = false;
   return ( close(sock->tcp_sock) );
 
 }
+
 
 /* create and return a blank hash table, given a size */
 fd_socket_hash init_socket_hashtable(int size){
@@ -110,3 +114,4 @@ void add_sock_to_hashtable(fd_socket_t *sock){
     socket_hashtable->table[slot] = sock;
   }
 }
+

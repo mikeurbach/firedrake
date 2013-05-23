@@ -1,0 +1,87 @@
+logging
+
+all of the logging functions are defined as macros within the underlying C code. all logging messages will appear in the log file "log.fd" in the format of [MESSAGE_TYPE] in [FILE:LINE] <your message>.  all logging is performed in a secondary thread to avoid interrupting the asynchronous i/o of the main event loop.
+
+fd_log_setup
+	if you wish to use the built in logging functions, you must run this macro at the beginning of your server code.  this function opens the logging file which is called  log.fd.	
+
+fd_log_d(format_string char[]);
+	logs a DEBUG message.
+
+fd_log_i(format_string char[]);
+	logs and INFO message.
+
+fd_log_m(format_string char[]);
+	logs a MESSAGE message.
+
+fd_log_w(format_string char[]);
+	logs a WARNING message.
+
+fd_log_c(format_string char[]);
+	logs a CRITICAL message.
+
+fd_log_e(format_string char[]);	
+	logs an ERROR message.
+
+
+channels (additions)
+
+void remove_from_all_channels(int sockid)
+	parameters:
+
+	int sockid: the file descriptor of the socket you wish to remove from all channels
+
+	returns: void
+
+	description:
+
+	remove_from_all_channels allows you to remove a socket from all channels.  you provide the file descriptor of the socket that you wish to remove.  the function removes the socket from all of the channel socket lists that it is in
+
+void remove_from_channel(char *key, int sockid)
+	parameters:
+
+	char *key: the name of the channel you want to remove from
+
+	int sockid: the file descriptor of the socket you wish to remove from the channel
+
+	returns: void
+
+	description:
+
+	remove_from_channel allows you to remove a socket from a channel.  you provide the file descriptor of the socket that you wish to remove and the channel you wish to remove it from.  the function removes the socket from the channel's list of sockets.
+
+void fd_close_channel(char *key)
+	parameters:
+
+	char *key: the name of the channel you wish to close
+
+	returns: void
+
+	description:
+
+	fd_close_channel allows you to close a channel. you provide the name of the channel you wish to close and the function takes care of gracefully freeing all of the associated memory and removing it from the hashtable of channels.  none of the channel's associated sockets (if any) are destroyed.
+
+close_all_channels()
+	parameters:
+
+	none
+
+	returns: void
+
+	description:
+
+	close_all_channels closes all the channels and frees the associated memory without destroying the sockets.
+
+
+handling connections (addition/edit)
+	
+void fd_socket_destroy(int sockid)
+	parameters:
+
+	int sockid: the file descriptor of the socket you wish to destroy
+
+	returns: void
+
+	description:
+
+	fd_socket_destroy allows you to close a socket and free its related memory. you provide the id of the socket you wish to destroy, and the function takes care of finding its associated struct, removing it from channels it is in, and freeing its memory.

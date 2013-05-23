@@ -83,19 +83,18 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 
   /* close all channels */
-
-  //  fd_close_channel("chatroom");
   close_all_channels();
 
   fd_log_m("closing gracefully\n");
 
   /* close all open sockets */
+  destroy_all_sockets();
 
   /* end the event loop */
   ev_break(loop, EVBREAK_ALL);
   
-	/* close the log queue */
-	qclose(log_queue);
+  /* close the log queue */
+  qclose(log_queue);
 
   /* close the log file */
   fd_log_close;

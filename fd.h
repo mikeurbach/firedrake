@@ -212,7 +212,7 @@ fd_channel_node create_channel(char *);
 void remove_from_channel(char *, int);
 int fd_broadcast(fd_socket_t *, char *, char *, int);
 void fd_channel_listener(struct ev_loop *, ev_io *, int);
-void remove_from_all_channels(int);
+void fd_remove_from_all_channels(int);
 void fd_join_channel(fd_socket_t *, char *, void (*cb)(fd_socket_t *, char *, int));
 int hash(char *, int);
 void remove_channel_from_sock_list(fd_socket_t *, char *);
@@ -228,8 +228,7 @@ int fd_recv(fd_socket_t *, char *);
 
 /* util function definitions */
 fd_socket_t *fd_socket_new(void);
-void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
-int fd_socket_close(fd_socket_t *);
+void fd_socket_destroy(int);
 void fd_close(struct ev_loop *, ev_signal *, int);
 void fd_log_write(int level, char *file, int line, char *fmt, ...);
 void *fd_log(void *);
@@ -237,6 +236,7 @@ void add_sock_to_hashtable(fd_socket_t *);
 void remove_sock_from_hashtable(fd_socket_t *);
 fd_socket_t *fd_lookup_socket(int);
 fd_socket_hash init_socket_hashtable(int);
+void destroy_all_sockets();
 
 #endif
 

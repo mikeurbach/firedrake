@@ -107,7 +107,7 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 	}
 
   if (status == 0) {
-    fd_socket_destroy(socket, loop);
+    fd_socket_destroy(socket->tcp_sock);
     return;
   }
 
@@ -286,7 +286,7 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 			 /* send a matching CLOSE message and close the socket gracefully */
 			 fd_log_i("close message received\n");
 			 status = fd_send(socket, socket->buffer, CONNECTION_CLOSE);
-			 fd_socket_destroy(socket, loop);
+			 fd_socket_destroy(socket->tcp_sock);
 			 break;
 		 }
 

@@ -55,7 +55,7 @@ fd_channel_node create_channel(char *key){
 }
 
 
-void remove_from_all_channels(int sockid){
+void fd_remove_from_all_channels(int sockid){
   fd_socket_t *socket = fd_lookup_socket(sockid);
   fd_channel_name *current = socket->channel_list;
 
@@ -67,7 +67,6 @@ void remove_from_all_channels(int sockid){
 
 /* remove a socket from channel given a channel name and socket id */
 void remove_from_channel(char *key, int sock){
-  int slot;
   fd_channel_node node = lookup_channel(key);
   fd_channel_watcher current, prev;
   struct ev_loop *loop = EV_DEFAULT;
@@ -169,8 +168,7 @@ void fd_close_channel(char *key){
 				remove_channel_from_sock_list(prev->socket, key);
 
 	ev_io_stop(loop, &prev->w);
-	free(prev->key);
-	free(prev->buffer);
+
 	free(prev);
 	prev = current;
       }
@@ -194,7 +192,7 @@ void fd_close_channel(char *key){
     if (pr == NULL)
       channel_hashtable->table[slot] = ch->next;
     else
-      prev->next = node->next;
+      pr->next = node->next;
     fd_log_i("removed channel %s node from hashtable\n", node->key);
     free(node);
 

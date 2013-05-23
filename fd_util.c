@@ -15,27 +15,27 @@ fd_socket_t *fd_socket_new(void){
 	return (new_sock);
 }
 
-void fd_socket_destroy(fd_socket_t *sock, struct ev_loop *loop){
-	ev_io_stop(loop, &sock->read_w);
-	close_all_channels();
-	fd_socket_close(sock);
-	free(sock->buffer);
-	free(sock->out_buffer);
-	free(sock);
-}
-
 /* Remove from channel list and from socket dict */
-int fd_socket_close(fd_socket_t *sock){
-  //  close_all_channels();
-  //  fd_close_channel("chatroom");
-  remove_from_all_channels(sock->tcp_sock);
+void fd_socket_destroy(int sockid){
+  struct ev_loop *loop = EV_DEFAULT;
+  fd_socket_t *sock = fd_lookup_socket(sockid);
+  ev_io_stop(loop, &sock->read_w);
+
+  /* remove socket from channels and hashtable */
+  fd_remove_from_all_channels(sockid);
   remove_sock_from_hashtable(sock);
 
   fd_log_i("closing socket with file descriptor: %d\n",sock->tcp_sock);
 
+  /* cleanup the socket struct */
   sock->is_open = false;
-  return ( close(sock->tcp_sock) );
+  close(sock->tcp_sock);
+  //  free(sock->buffer);
+  //  free(sock->out_buffer);
+  free(sock);
 }
+
+
 
 void fd_log_write(int level, char *file, int line, char *fmt, ...){
 	char output[MAX_LOG_LINE], message[MAX_LOG_LINE];
@@ -117,6 +117,28 @@ fd_socket_t *fd_lookup_socket(int sockid){
 }
 
 /* remove all sockets from hashtable */
+void destroy_all_sockets(){
+  fd_socket_t *current, *prev;
+
+  for(int i = 0; i < socket_hashtable->size; i++){
+    current = socket_hashtable->table[i];
+
+    /* if slot in hashtable has socket, remove all sockets in slot */
+    if (current != NULL){
+      prev = current;
+      current = current->next;
+      for (current; current != NULL; current = current->next){
+	fd_socket_destroy(prev->tcp_sock);
+	prev = current;
+      }
+      fd_socket_destroy(prev->tcp_sock);
+    }    
+  }
+
+  /* now free the dictionary itself */
+  free(socket_hashtable);
+
+}
 
 
 
@@ -126,7 +148,7 @@ void remove_sock_from_hashtable(fd_socket_t *sock){
   fd_socket_t *current, *prev;
 
 
-  if (fd_lookup_socket(sock->tcp_sock) != NULL){
+  if (sock != NULL){
     current = socket_hashtable->table[slot];
     prev = NULL;
 

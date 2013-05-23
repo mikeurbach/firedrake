@@ -56,8 +56,11 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 		channel_hashtable = init_channels(HASH_SIZE);
 
 	/* setup logging */
-	log_file = fopen(LOG_FILE,"a");								
-	log_queue = qopen();
+	if(log_file == NULL){
+		log_file = fopen(LOG_FILE,"a");								
+		log_queue = qopen();
+	}
+	
 	pthread_create(log_thread, NULL, fd_log, NULL);
 
 	/* check if the socket hashtable has been initialzed yet */

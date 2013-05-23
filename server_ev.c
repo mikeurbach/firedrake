@@ -8,9 +8,6 @@ void onchannel(fd_socket_t *, char *, int);
 int main(int argc, char *argv[]){
 	int port;
 
-	//setup the log file for use
-	fd_log_setup;
-	
 	/* read the port from the command line */
 	if(argc != 2){
 		printf("usage: server <port>\n");

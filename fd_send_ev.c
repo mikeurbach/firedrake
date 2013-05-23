@@ -144,13 +144,9 @@ void fd_send_nb(struct ev_loop *loop, ev_io *w, int revents){
 		socket->bytes_sent += status;
 		++socket->sends;
 		
-		fd_log_i("bytes sent in call #%d: %d\n" 
-					 "	Total bytes_sent: %d\n"
-					 "	Total bytes_outgoing: %d\n",
-					 socket->sends, status, 
-					 (int) socket->bytes_sent, (int) socket->bytes_outgoing);
-		
-
+		fd_log_i("bytes sent in call #%d: %d\n", socket->sends);
+		fd_log_i("total bytes_sent: %d\n", (int) socket->bytes_sent);
+		fd_log_i("total bytes_outgoing: %d\n", (int) socket->bytes_outgoing);
 	}
 
 	/* once we've sent everything */

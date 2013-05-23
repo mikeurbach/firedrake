@@ -124,12 +124,12 @@ void remove_channel_from_sock_list(fd_socket_t *socket, char *key){
     prev = current;
 
   if (current == NULL) {
-    printf("Channel name %s was not found in socket #%d's channel list\n", key, socket->tcp_sock);
+    fd_log_w("channel name %s was not found in socket #%d's channel list\n", key, socket->tcp_sock);
   }
 
   /* remove this channel node from list of channels */
   else {
-    printf("Removing channel %s from socket %d's channel list\n", current->key, socket->tcp_sock);
+    fd_log_i("removing channel %s from socket %d's channel list\n", current->key, socket->tcp_sock);
     if (prev == NULL) {
       socket->channel_list = current->next;
     }
@@ -150,23 +150,23 @@ void fd_close_channel(char *key){
   fd_channel_watcher current, prev;
   struct ev_loop *loop = EV_DEFAULT;
 
-  printf("Attempting to close channel %s\n", key);
+  fd_log_i("attempting to close channel %s\n", key);
 
   if (node == NULL){
-	fd_log_e("the node you are attempting to delete does not exist.\n");
+		fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {
-    if (node->watchers == NULL)
-      printf("No current watchers attached to channel %s\n", key);
-    else {
+    if (node->watchers == NULL){
+      fd_log_w("no current watchers attached to channel %s\n", key);
+		} else {
       prev = node->watchers;
       current = prev->next;
 
       /* go through watchers, remove each from list */
       for (current; current != NULL; current = current->next){
       
-	remove_channel_from_sock_list(prev->socket, key);
+				remove_channel_from_sock_list(prev->socket, key);
 
 	ev_io_stop(loop, &prev->w);
 	free(prev->key);
@@ -186,8 +186,8 @@ void fd_close_channel(char *key){
     pr = NULL;
 
     for (ch;
-	 ch != NULL && strcmp(ch->key, node->key);
-	 ch = ch->next)
+				 ch != NULL && strcmp(ch->key, node->key);
+				 ch = ch->next)
       pr = ch;
     
     /* if prev is null, channel node is first in slot  */
@@ -195,7 +195,7 @@ void fd_close_channel(char *key){
       channel_hashtable->table[slot] = ch->next;
     else
       prev->next = node->next;
-    printf("Removed channel %s node from hashtable\n", node->key);
+    fd_log_i("removed channel %s node from hashtable\n", node->key);
     free(node);
 
   }

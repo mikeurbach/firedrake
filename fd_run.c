@@ -8,6 +8,7 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   struct sockaddr_in servaddr;
   struct ev_loop *loop = EV_DEFAULT;
   ev_signal sigint_w;
+	pthread_t *log_thread = malloc(sizeof(pthread_t));
 
 	/* call socket to get a file descriptor */
   if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
@@ -54,6 +55,11 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	if(channel_hashtable == NULL)
 		channel_hashtable = init_channels(HASH_SIZE);
 
+	/* setup logging */
+	log_file = fopen(LOG_FILE,"a");								
+	log_queue = qopen();
+	pthread_create(log_thread, NULL, fd_log, NULL);
+
 	/* check if the socket hashtable has been initialzed yet */
 	if(socket_hashtable == NULL)
 		socket_hashtable = init_socket_hashtable(HASH_SIZE);
@@ -73,22 +79,21 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 /* close gracefully */
 void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 
-  printf("\nClosing gracefully\n");
-
   /* close all channels */
 
   //  fd_close_channel("chatroom");
   close_all_channels();
 
-  fd_log_m("Closing gracefully\n");
-
+  fd_log_m("closing gracefully\n");
 
   /* close all open sockets */
-
 
   /* end the event loop */
   ev_break(loop, EVBREAK_ALL);
   
+	/* close the log queue */
+	qclose(log_queue);
+
   /* close the log file */
   fd_log_close;
 }

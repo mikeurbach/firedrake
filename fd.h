@@ -19,7 +19,9 @@
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
+#include <pthread.h>
 #include "base64.h"
+#include "queue.h"
 
 /* libev */
 #ifndef EV_STANDALONE
@@ -35,35 +37,10 @@
 #define MIN_HEADER_LEN 6
 #define MAX_HEADER_LEN 14
 #define MAX_MESSAGE_LEN 4096
+#define MAX_LOG_LINE 256
 #define PAYLOAD_EXT_16 126
 #define PAYLOAD_EXT_64 127
 #define HASH_SIZE 4
-
-/* logging macros */
-
-/* open logging file */
-#define fd_log_setup {log_file = fopen(LOG_FILE,"a");}
-
-/*close logging file*/
-#define fd_log_close {fclose(log_file);}
-
-/* debug log */
-#define fd_log_d(...) {fprintf(log_file, "[DEBUG] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
-
-/* info log */
-#define fd_log_i(...) {fprintf(log_file, "[INFO] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
-
-/* message log */
-#define fd_log_m(...) {fprintf(log_file, "[MESSAGE] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	
-
-/* warning log */  	  	  	  	  	  
-#define fd_log_w(...) {fprintf(log_file, "[WARNING] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
-
-/* critical log */  	  	  	  	  	  
-#define fd_log_c(...) {fprintf(log_file, "[CRITICAL] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}
-  	  	  	  	  	  
-/* error log */
-#define fd_log_e(...) {fprintf(log_file, "[ERROR] in [%s:%d]: ", __FILE__, __LINE__); fprintf(log_file, __VA_ARGS__);}	  	  	  	  	  
 
 /* structs */
 typedef struct _fd_channel_name fd_channel_name;
@@ -162,17 +139,52 @@ enum OPCODE {
 	OPEN,
 };
 
-/* macros */
+enum LOG_LEVEL {
+	DEBUG,
+	INFO,
+	MESSAGE,
+	WARNING,
+	CRITICAL,
+	ERROR
+};
+
+/* logging macros */
+
+/* open logging file */
+#define fd_log_setup														\
+	log_file = fopen(LOG_FILE,"a");								\
+	logger = malloc(sizeof(struct _fd_logger));		\
+	memset(logger, 0, sizeof(struct _fd_logger));
+
+/* close logging file */
+#define fd_log_close fclose(log_file);
+
+/* logging macros of different levels */
+#define fd_log_d(...)																		\
+	fd_log_write(DEBUG, __FILE__, __LINE__, __VA_ARGS__);
+#define fd_log_i(...)																		\
+	fd_log_write(INFO, __FILE__, __LINE__, __VA_ARGS__);
+#define fd_log_m(...)																			\
+	fd_log_write(MESSAGE, __FILE__, __LINE__, __VA_ARGS__);
+#define fd_log_w(...)																			\
+	fd_log_write(WARNING, __FILE__, __LINE__, __VA_ARGS__);
+#define fd_log_c(...)																				\
+	fd_log_write(CRITICAL, __FILE__, __LINE__, __VA_ARGS__);
+#define fd_log_e(...)																		\
+	fd_log_write(ERROR, __FILE__, __LINE__, __VA_ARGS__);
+
+/* generic macros */
 #define wtos(w,m)																						\
 	(fd_socket_t *) (((char *) w) - offsetof(fd_socket_t, m))
+
 #define assert_event(e)												\
 	if(!(revents & e))													\
 		return
 
 
 /* global variables */
-
 FILE* log_file;
+void *log_queue;
 fd_channel_hash channel_hashtable;
 fd_socket_hash socket_hashtable;
 
@@ -191,6 +203,7 @@ void client_callback_r(struct ev_loop *, ev_io *, int);
 void client_callback_w(struct ev_loop *, ev_io *, int);
 void fd_recv_nb(struct ev_loop *, ev_io *, int);
 void fd_send_nb(struct ev_loop *, ev_io *, int);
+void fd_channel_listener(struct ev_loop *, ev_io *, int);
 
 /* channel function definitions */
 fd_channel_hash init_channels(int );
@@ -205,8 +218,6 @@ int hash(char *, int);
 void remove_channel_from_sock_list(fd_socket_t *, char *);
 void fd_close_channel(char *);
 void close_all_channels();
-int hash(char *s, int size);
-
 
 /* firedrake function definitions */
 int fd_ondata(fd_socket_t *, void(*)(char *));
@@ -220,11 +231,12 @@ fd_socket_t *fd_socket_new(void);
 void fd_socket_destroy(fd_socket_t *, struct ev_loop *);
 int fd_socket_close(fd_socket_t *);
 void fd_close(struct ev_loop *, ev_signal *, int);
+void fd_log_write(int level, char *file, int line, char *fmt, ...);
+void *fd_log(void *);
 void add_sock_to_hashtable(fd_socket_t *);
 void remove_sock_from_hashtable(fd_socket_t *);
 fd_socket_t *fd_lookup_socket(int);
 fd_socket_hash init_socket_hashtable(int);
-
 
 #endif
 

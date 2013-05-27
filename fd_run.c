@@ -86,10 +86,10 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 /* close gracefully */
 void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 
+  fd_log_m("closing gracefully\n");
+
   /* close all channels */
   close_all_channels();
-
-  fd_log_m("closing gracefully\n");
 
   /* close all open sockets */
   destroy_all_sockets();

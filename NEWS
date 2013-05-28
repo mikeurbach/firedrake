@@ -1,0 +1,7 @@
+firedrake 1.0.0:
+
+this is the beta distribution of firedrake, so there will be bugs. there definitely are memory leaks, and nothing is done over ssl, so consider the library very insecure. 
+
+bug 1: calls to fd_broadcast do not actually guarantee the delivery of your messages. this is due to a race condition in the fd_broadcast implementation that won't be solved until a proper mutual exclusion algorithm is implemented.
+
+bug 2: sometimes a client socket that has just been opened sends a 0 byte message (at least in Chrome), which normally indicates an orderly shutdown. if this happens, firedrake indeed discards the connection, and it is up to the client to try to reconnect.

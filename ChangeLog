@@ -1,0 +1,271 @@
+2013-05-27  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, Makefile.in, README, README.md, aclocal.m4, ar-lib,
+  autom4te.cache/output.1, autom4te.cache/requests, autom4te.cache/traces.0,
+  autom4te.cache/traces.1, autom4te.cache/traces.2, autom4te.cache/traces.3,
+  autom4te.cache/traces.4, autom4te.cache/traces.5, config.guess, config.log,
+  config.status, configure, configure.ac, depcomp, firedrake-1.0.0.tar.gz,
+  install-sh, libfd.a, ltmain.sh, missing, test/server.c: autotools should work
+  now, firedrake-1.0.0.tar.gz is the distribution
+
+2013-05-26  Michael A. Urbach <urbach@tahoe.cs.dartmouth.edu>
+
+  * .deps/fd.Po, .deps/firedrake.Po, .deps/libfd.Po, COPYING, INSTALL,
+  Makefile, Makefile.am, Makefile.in, aclocal.m4, ar-lib,
+  autom4te.cache/output.0, autom4te.cache/requests, autom4te.cache/traces.0,
+  autom4te.cache/traces.1, autom4te.cache/traces.2, autom4te.cache/traces.3,
+  autom4te.cache/traces.4, autom4te.cache/traces.5, base64.c, base64.h,
+  client.c, config.guess, config.log, config.status, config.sub, configure.ac,
+  depcomp, doc_sections.txt, examples/hermes.html, examples/server.c, fd.h,
+  fd_channels.c, fd_recv_ev.c, fd_recv_legacy.c, fd_run.c, fd_send_ev.c,
+  fd_send_legacy.c, fd_util.c, hermes.html, install-sh, libev/Changes,
+  libev/LICENSE, libev/Makefile.am, libev/Makefile.in, libev/README,
+  libev/Symbols.ev, libev/Symbols.event, libev/aclocal.m4, libev/autogen.sh,
+  libev/config.guess, libev/config.h.in, libev/config.sub, libev/configure.ac,
+  libev/depcomp, libev/ev++.h, libev/ev.3, libev/ev.c, libev/ev.h,
+  libev/ev.pod, libev/ev_epoll.c, libev/ev_kqueue.c, libev/ev_poll.c,
+  libev/ev_port.c, libev/ev_select.c, libev/ev_vars.h, libev/ev_win32.c,
+  libev/ev_wrap.h, libev/event.c, libev/event.h, libev/install-sh,
+  libev/libev.m4, libev/ltmain.sh, libev/missing, libev/mkinstalldirs, libfd.a,
+  ltmain.sh, m4/libtool.m4, m4/ltoptions.m4, m4/ltsugar.m4, m4/ltversion.m4,
+  m4/lt~obsolete.m4, missing, queue.c, queue.h, server_ev.c, server_legacy.c,
+  src/Makefile, src/base64.c, src/base64.h, src/fd.h, src/fd_channels.c,
+  src/fd_recv.c, src/fd_run.c, src/fd_send.c, src/fd_util.c, src/libev/Changes,
+  src/libev/LICENSE, src/libev/Makefile.am, src/libev/Makefile.in,
+  src/libev/README, src/libev/Symbols.ev, src/libev/Symbols.event,
+  src/libev/aclocal.m4, src/libev/autogen.sh, src/libev/config.guess,
+  src/libev/config.h.in, src/libev/config.sub, src/libev/configure.ac,
+  src/libev/depcomp, src/libev/ev++.h, src/libev/ev.3, src/libev/ev.c,
+  src/libev/ev.h, src/libev/ev.pod, src/libev/ev_epoll.c,
+  src/libev/ev_kqueue.c, src/libev/ev_poll.c, src/libev/ev_port.c,
+  src/libev/ev_select.c, src/libev/ev_vars.h, src/libev/ev_win32.c,
+  src/libev/ev_wrap.h, src/libev/event.c, src/libev/event.h,
+  src/libev/install-sh, src/libev/libev.m4, src/libev/ltmain.sh,
+  src/libev/missing, src/libev/mkinstalldirs, src/queue.c, src/queue.h,
+  test/client.c, whiteboard/whiteboard.html: now using autotools, damn it feels
+  good to be a gnuangster
+
+2013-05-23  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd_channels.c, fd_util.c: some valgrind fixes
+
+  * fd.h, fd_channels.c, fd_recv_ev.c, fd_run.c, fd_util.c: full show closing
+  gracefully
+
+2013-05-23  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_channels.c, fd_run.c, fd_util.c: afds
+
+2013-05-23  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * doc_sections.txt, server_ev.c: firedrake tutorial and documentation
+  expansions
+
+  * doc_sections.txt, fd_run.c, server_ev.c: more updated firedrake docs
+
+2013-05-22  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd.h, fd_channels.c, fd_util.c: cleanup of channels appears to work with
+  small hashtable. remaining task to kill all sockets
+
+2013-05-22  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_run.c, fd_send_ev.c, fd_util.c, queue.c, queue.h,
+  server_ev.c: Now logging in a separate thread
+
+2013-05-22  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd.h, fd_channels.c, fd_run.c, fd_util.c: attempting to close gracefully
+
+2013-05-22  Mike Urbach <mikeurbach@gmail.com>
+
+  * fd.h, fd_channels.c, fd_recv_ev.c, server_ev.c: Now fd_broadcast
+  dynamically allocates its buffer as well
+
+  * fd.h, fd_recv_ev.c, fd_run.c: Now dynamically allocating the buffer for
+  receiving as well
+
+  * client.c, fd.h, fd_recv_ev.c, fd_run.c, fd_send_ev.c, server_ev.c: Now
+  working for messages larger than the buffer size
+
+2013-05-21  Sudikoff Lab iMac <imac@dhcp-210-74.lab.cs.dartmouth.edu>
+
+  * fd.h, fd_channels.c, fd_recv_ev.c, fd_run.c, fd_send_ev.c, fd_util.c,
+  server_ev.c: updated logging functionality
+
+2013-05-21  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_recv_ev.c: Adding some changes
+
+2013-05-20  Sudikoff Lab iMac <imac@dhcp-210-90.lab.cs.dartmouth.edu>
+
+  * Makefile, fd.h, fd_channels.c, fd_recv_ev.c, fd_run.c, fd_send_ev.c,
+  fd_util.c: Added logging to all of the fd files.
+
+2013-05-09  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * Makefile, client.c, fd.h, fd_channels.c, fd_recv_ev.c, fd_run.c,
+  fd_send_ev.c, fd_util.c, server_ev.c: updated code for milestone 3
+
+2013-05-07  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * Makefile, client.c, fd_recv_ev.c, server_ev.c: pushing client real good
+  yall
+
+2013-05-03  Mike Urbach <mikeurbach@gmail.com>
+
+  * fd.h, fd_channels.c, fd_recv_ev.c, fd_send_ev.c: Did some cleanup, made
+  fd_broadcast only use 1 buffer/strcpy per channel, and added checks on
+  revents
+
+2013-05-02  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_channels.c, fd_run.c, hermes.html, server_ev.c: Channels
+  implemented.
+
+2013-04-30  Mike Urbach <mikeurbach@gmail.com>
+
+  * fd.h, fd_run.c: Modifications to fd.h and fd_run.c
+
+2013-04-30  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd.h, fd_channels.c: updated fd.h with channel watcher struct. added
+  fd_channels.c with add_to_channel fxn
+
+2013-04-30  Mike Urbach <mikeurbach@gmail.com>
+
+  * fd.h, fd_recv_ev.c, fd_run.c, server_ev.c: First API iteration: user
+  supplies accept callback and data callback
+
+  * fd.h, fd_recv_ev.c, fd_run.c, fd_send_ev.c: Non-blocking send and recv
+
+2013-04-25  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd.h, fd_recv_ev.c, fd_run.c, fd_util.c: working recv_ev for milestone #2
+
+2013-04-23  Mike Urbach <mikeurbach@gmail.com>
+
+  * fd.h, fd_recv_ev.c, fd_run.c: fd_recv_ev.c is still getting gibberish, but
+  I think it works up to line 180
+
+  * Makefile, fd_recv.c, fd_recv_ev.c, fd_recv_legacy.c, fd_send2.c,
+  fd_send_ev.c, fd_send_legacy.c, server.c, server2.c, server_ev.c,
+  server_legacy.c: Updated to have two separate makes
+
+2013-04-23  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * fd_recv.c, fd_send2.c: working send and receive sans libev
+
+2013-04-22  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_run.c, libev/Changes, libev/LICENSE, libev/Makefile.am,
+  libev/Makefile.in, libev/README, libev/Symbols.ev, libev/Symbols.event,
+  libev/aclocal.m4, libev/autogen.sh, libev/config.guess, libev/config.h.in,
+  libev/config.sub, libev/configure.ac, libev/depcomp, libev/ev++.h,
+  libev/ev.3, libev/ev.c, libev/ev.h, libev/ev.pod, libev/ev_epoll.c,
+  libev/ev_kqueue.c, libev/ev_poll.c, libev/ev_port.c, libev/ev_select.c,
+  libev/ev_vars.h, libev/ev_win32.c, libev/ev_wrap.h, libev/event.c,
+  libev/event.h, libev/install-sh, libev/libev.m4, libev/ltmain.sh,
+  libev/missing, libev/mkinstalldirs, server.c: now using libev
+
+2013-04-21  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * fd_recv.c, fd_util.c: Edited fd_recv and fd_util...still problems with long
+  messages.
+
+2013-04-16  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * Makefile, base64.c, base64.h, fd.h, fd_util.c: re-added base64 files
+
+  * base64.c, base64.h, bencode.c, bencode.h, chat/.cproject, chat/.project,
+  chat/.svn/all-wcprops, chat/.svn/entries, chat/.svn/format,
+  chat/.svn/text-base/.cproject.svn-base,
+  chat/.svn/text-base/.project.svn-base, chat/.svn/text-base/Makefile.svn-base,
+  chat/.svn/text-base/chat_client.c.svn-base,
+  chat/.svn/text-base/chat_client.h.svn-base,
+  chat/.svn/text-base/chat_server.c.svn-base,
+  chat/.svn/text-base/chat_server.h.svn-base,
+  chat/.svn/text-base/macros.h.svn-base,
+  chat/.svn/text-base/protocol_spec.txt.svn-base, chat/Debug/chat_client.d,
+  chat/Debug/chat_client.o, chat/Debug/chat_server.d, chat/Debug/makefile,
+  chat/Debug/objects.mk, chat/Debug/sources.mk, chat/Debug/subdir.mk,
+  chat/Makefile, chat/chat_client.c, chat/chat_client.h, chat/chat_client.o,
+  chat/chat_server.c, chat/chat_server.h, chat/chat_server.o, chat/macros.h,
+  chat/mychat, chat/protocol_spec.txt, chat/server, fd_send.c, macros.h,
+  mikes_python_server.py, new-server.c, server.h, sha1.c, sha1.h: cleaning up
+  the git repository
+
+  * fd.h, fd_recv.c, fd_send.c, fd_send2.c, server.c: Added some things to
+  fd.h, changed the function prototype for fd_send, and added opcode handling
+  to fd_recv.  fd_send still needs to implement opcode handling based on the
+  function parameter.
+
+2013-04-11  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, fd_send.c, server.c: fd_send works for length <= 65K
+
+2013-04-11  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * Makefile, chat/chat_client.o, chat/chat_server.o, chat/mychat, chat/server,
+  fd.c, fd.h, server.c: fd_recv works, tested with websocket plugin for chrome
+
+2013-04-11  Matthew Diephuis <mdiephuis3@gmail.com>
+
+  * Makefile, fd.h, fd_send.c, server.c: updated fd_send and such
+
+2013-04-11  Mike Urbach <mikeurbach@gmail.com>
+
+  * base64.c, base64.h: Adding base64 encoding file
+
+2013-04-10  Mike Urbach <mikeurbach@gmail.com>
+
+  * Makefile, fd.h, server.c: Cleaned house. Now use server.c, which includes
+  fd.h
+
+  * Makefile, new-server.c, server.h: Handshake works
+
+2013-04-09  Drew Jankowski <andrewkjankowski@gmail.com>
+
+  * fd.c, fd.h: Made changes to fd.c/fd.h. Actually compile now...hooray!
+
+  * bencode.c, bencode.h: added bencode files
+
+2013-04-09  Andrew K. Jankowski <djank@tahoe.cs.dartmouth.edu>
+
+  * bencode.c, bencode.h: added bencode files
+
+  * sha1.c, sha1.h: added SHA1 code
+
+2013-04-09  Mike Urbach <mikeurbach@gmail.com>
+
+  * new-server.c, server.h: Starting to write handshake()
+
+  * Makefile, new-server.c: Refactored Drew's code into new-server.c and
+  updated Makefile to use new-server.c
+
+2013-04-09  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * Makefile, macros.h, server.h: New server look and feel
+
+  * chat/.cproject, chat/.project, chat/.svn/all-wcprops, chat/.svn/entries,
+  chat/.svn/format, chat/.svn/text-base/.cproject.svn-base,
+  chat/.svn/text-base/.project.svn-base, chat/.svn/text-base/Makefile.svn-base,
+  chat/.svn/text-base/chat_client.c.svn-base,
+  chat/.svn/text-base/chat_client.h.svn-base,
+  chat/.svn/text-base/chat_server.c.svn-base,
+  chat/.svn/text-base/chat_server.h.svn-base,
+  chat/.svn/text-base/macros.h.svn-base,
+  chat/.svn/text-base/protocol_spec.txt.svn-base, chat/Debug/chat_client.d,
+  chat/Debug/chat_client.o, chat/Debug/chat_server.d, chat/Debug/makefile,
+  chat/Debug/objects.mk, chat/Debug/sources.mk, chat/Debug/subdir.mk,
+  chat/Makefile, chat/chat_client.c, chat/chat_client.h, chat/chat_client.o,
+  chat/chat_server.c, chat/chat_server.h, chat/chat_server.o, chat/macros.h,
+  chat/mychat, chat/protocol_spec.txt, chat/server: added chat client from CS60
+
+2013-04-07  Andrew K. Jankowski <andrewkjankowski@gmail.com>
+
+  * fd.c, fd.h: added some code for actually parsing the WebSocket header
+
+  * fd.c, fd.h: added pseudocode for recv function
+
+  * fd.c, fd.h: Initial import of fd header and library file

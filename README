@@ -1,2 +1,23 @@
-firedrake
-=========
+firedrake is a c library for writing websocket servers. below is an example installation procedure. for more details about installing, like options that you can pass to ./configure, see INSTALL.
+
+if you haven't done so already, download firedrake, unpack it, and enter the directory:
+
+    wget http://cs.dartmouth.edu/~urbach/firedrake/firedrake-1.0.0.tar.gz
+    tar xzvf firedrake-1.0.0.tar.gz
+    cd firedrake-1.0.0/
+
+then build firedrake for your system and install it (may need sudo to install):
+
+    ./configure
+    make
+    [sudo] make install
+
+firedrake uses libtool to make the library, and libtool will tell you where the library was installed. it also informs you about the various ways to link against libfd.so. we've found the easiest method to be the following, assuming libtool informed you that the library was installed in <dir>, and your code is in <file...>.
+
+    gcc -Wl,-rpath,<dir> <file...> -lfd
+
+the -Wl,-rpath,<dir> option feeds -rpath <dir> to gcc, ensuring that the directory where libtool installed firedrake is in the runtime library path.
+
+for an example server with explanations and api documentation, visit http://cs.dartmouth.edu/~urbach/firedrake.
+
+report bugs to <mikeurbach@gmail.com>.

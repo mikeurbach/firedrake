@@ -64,6 +64,17 @@
 #define HASH_SIZE 4
 
 /* structs */
+
+/* the socket we hand the user */
+struct socket {
+	int *id;
+	int *msgtype;
+	char *buffer;
+	void (*)(void *, char *) ondata;
+	void (*)(void *) onend;
+};
+
+/* the internal beast */
 typedef struct _fd_channel_name fd_channel_name;
 typedef struct _fd_socket_t fd_socket_t;
 struct _fd_socket_t {

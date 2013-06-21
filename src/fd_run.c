@@ -129,6 +129,7 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 	int connfd;
 	fd_socket_t *client, *server = wtos(w, read_w);
   struct sockaddr_in cliaddr;
+	struct socket usocket;
   socklen_t clilen = sizeof(cliaddr);
 	
 	/* accept a connection */
@@ -153,9 +154,17 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 	client->buffer = malloc(MAX_MESSAGE_LEN);
 	memset(client->buffer, 0, MAX_MESSAGE_LEN);
 
+	/* set up our user socket struct */
+	usocket = malloc(sizeof(struct socket));
+	memset(usocket, 0, sizeof(struct socket));
+	usocket->id = &client->tcp_sock;
+	usocket->msgtype = &client->msgtype;
+	usocket->ondata = &client->data_cb;
+	usocket->onend = &client->end_cb;
+
 	/* invoke the user's callback on the fresh socket, 
 	   before the handshake has begun */
-	server->accept_cb(client);
+	server->accept_cb(usocket);
 
 	/* start the handshake when the socket is ready */
 	ev_io_init(&client->read_w, handshake_callback_r, connfd, EV_READ);

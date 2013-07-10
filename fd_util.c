@@ -9,8 +9,8 @@ fd_socket_t *fd_socket_new(void){
 	
 	//set defaults
 	new_sock->tcp_sock = -1;
-	new_sock->last_recv_opcode = -1;
-	new_sock->is_open = false;
+	new_sock->__internal.last_recv_opcode = -1;
+	new_sock->__internal.is_open = false;
 
 	return (new_sock);
 }
@@ -28,13 +28,15 @@ void fd_socket_destroy(int sockid){
   fd_log_i("closing socket with file descriptor: %d\n",sock->tcp_sock);
 
   /* cleanup the socket struct */
-  sock->is_open = false;
+  sock->__internal.is_open = false;
   close(sock->tcp_sock);
   /* if (sock->buffer != NULL) */
   /*   free(sock->buffer); */
   /* if (sock->out_buffer != NULL) */
   /*   free(sock->out_buffer); */
-  free(sock);
+
+	// TODO: we can't free part of a static table, what should we do?
+  // free(sock);
 }
 
 
@@ -92,99 +94,52 @@ void *fd_log(void *data){
 	}
 }
 
-/* create and return a blank hash table, given a size */
-fd_socket_hash init_socket_hashtable(int size){
-	fd_socket_hash hashtable = malloc(sizeof(struct _fd_socket_hash));
-	fd_socket_t **table = 
-		(fd_socket_t **) calloc(size, sizeof(struct _fd_socket_t));
-	hashtable->size = size;
-	hashtable->table = table;
-	return hashtable;
-}
-
 fd_socket_t *fd_lookup_socket(int sockid){
-	int slot; 
-	fd_socket_t *sock;
-
-	/* check if hashtable has been initialized yet */
-	if(socket_hashtable == NULL)
-		socket_hashtable = init_socket_hashtable(HASH_SIZE);
-
-	slot = hash_sock(sockid, socket_hashtable->size);
-
-	/* look through the nodes at this slot */
-	for(sock = socket_hashtable->table[slot];
-	    sock != NULL && (sock->tcp_sock != sockid); 
-	    sock = sock->next);
-	//
-
-	return sock;
+	return (fd_socket_t *) &socket_table[sockid];
 }
 
 /* remove all sockets from hashtable */
 void destroy_all_sockets(){
-  fd_socket_t *current, *prev;
 
-  for(int i = 0; i < socket_hashtable->size; i++){
-    current = socket_hashtable->table[i];
+  for(int i = 0; i < MAX_SOCKETS; i += sizeof(fd_socket_t))
+		free((fd_socket_t *) &socket_table[i]);
 
-    /* if slot in hashtable has socket, remove all sockets in slot */
-    if (current != NULL){
-      prev = current;
-      current = current->next;
-      for (current; current != NULL; current = current->next){
-	fd_socket_destroy(prev->tcp_sock);
-	prev = current;
-      }
-      fd_socket_destroy(prev->tcp_sock);
-    }    
-  }
-
-  /* now free the dictionary itself */
-  free(socket_hashtable->table);
-  free(socket_hashtable);
-
+  free(socket_table);
 }
 
-
-
-/* Remove socket from hastable */
+/* Remove socket from table */
 void remove_sock_from_hashtable(fd_socket_t *sock){
-  int slot = hash_sock(sock->tcp_sock, socket_hashtable->size);
-  fd_socket_t *current, *prev;
+  int slot = sock->id;
 
-
-  if (sock != NULL){
-    current = socket_hashtable->table[slot];
-    prev = NULL;
-
-    for (current;
-	 current->next != NULL && current->next->tcp_sock != sock->tcp_sock;
-	 current = current->next)
-      prev = current;
-    
-    /* if prev is null, sock is first in slot  */
-    if (prev == NULL)
-      socket_hashtable->table[slot] = current->next;
-    else
-      current->next = sock->next;
-
-    fd_log_i("removed sock id %d from hashtable\n", sock->tcp_sock);
-  } 
-  else
-    fd_log_w("atempted removal of socket with id %d failed: socket was not found\n", sock->tcp_sock);
-
+	// TODO: we are going to have to mark sock->id as an open slot
+	// in a list somewhere for the socket allocator
+	// free(sock); 
+	fd_log_i("removed socket with id %d from table", slot);
 }
 
+/* add socket to table */
+int add_sock_to_hashtable(int connfd){
+	static int slot = 0;
 
-void add_sock_to_hashtable(fd_socket_t *sock){
-  int slot = hash_sock(sock->tcp_sock, socket_hashtable->size);
+	/* if we have room */
+	if(slot < MAX_SOCKETS){
+		/* initialize this socket's space */
+		memset(&socket_table[slot], 0, sizeof(fd_socket_t));
 
-  fd_log_i("adding socket %d to hashtable\n",sock->tcp_sock);
+		/* intitialize its socket, id, and buffer */
+		socket_table[slot].tcp_sock = connfd;
+		socket_table[slot].id = slot;
+		socket_table[slot].__internal.buffer =
+			malloc(MAX_MESSAGE_LEN);
+		memset(socket_table[slot].__internal.buffer, 0, 
+					 MAX_MESSAGE_LEN);
 
-  /* put it in the hash table if it doesnt already exist*/
-  if (fd_lookup_socket(sock->tcp_sock) == NULL){
-    sock->next = socket_hashtable->table[slot];
-    socket_hashtable->table[slot] = sock;
-  }
+		fd_log_i("added socket with id %d to table\n", slot);
+
+		return slot ++;
+	} else {
+		fd_log_c("could not add socket to table; table full");
+
+		return -1;
+	}
 }

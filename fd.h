@@ -30,10 +30,11 @@
 #endif
 
 /* defines */
-#define LOG_FILE "log.fd"
+#define LOG_FILE "log.txt"
 #define LISTENQ 20 /*maximum number of client connections*/
 #define HEADERKEY "Sec-WebSocket-Key"
 #define MAGICSTRING "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define MAX_SOCKETS 1000
 #define MIN_HEADER_LEN 6
 #define MAX_HEADER_LEN 14
 #define MAX_MESSAGE_LEN 4096
@@ -42,13 +43,16 @@
 #define PAYLOAD_EXT_64 127
 #define HASH_SIZE 4
 
-/* structs */
+/* typedefs */
+typedef struct _fd_socket_internal fd_socket_internal;
 typedef struct _fd_channel_name fd_channel_name;
 typedef struct _fd_socket_t fd_socket_t;
-struct _fd_socket_t {
-	ev_io read_w;
-	ev_io write_w;
-	int	tcp_sock;
+typedef struct _fd_channel_watcher *fd_channel_watcher;
+typedef struct _fd_channel_node *fd_channel_node;
+typedef struct _fd_channel_hash *fd_channel_hash;
+
+/* structs */
+struct _fd_socket_internal {
 	uint64_t bytes_expected;
 	uint64_t bytes_received;
 	uint64_t bytes_outgoing;
@@ -66,15 +70,22 @@ struct _fd_socket_t {
   int recvs;
 	int sends;
 	int event;
+  fd_socket_t *next;
+  fd_channel_name *channel_list;
+};
+
+struct _fd_socket_t {
+	ev_io read_w;
+	ev_io write_w;
+	int	tcp_sock;
+	int id;
 	void *data;
 	void (*accept_cb)(fd_socket_t *socket);
 	void (*data_cb)(fd_socket_t *socket, char *buffer);
-  fd_socket_t *next;
-  fd_channel_name *channel_list;
 	void (*end_cb)(fd_socket_t *socket);
+	fd_socket_internal __internal;
 };
 
-typedef struct _fd_channel_watcher *fd_channel_watcher;
 struct _fd_channel_watcher {
 	ev_io w;
 	fd_socket_t *socket;
@@ -85,7 +96,6 @@ struct _fd_channel_watcher {
 	fd_channel_watcher next;
 };
 
-typedef struct _fd_channel_node *fd_channel_node;
 struct _fd_channel_node {
 	fd_channel_watcher watchers;
 	char *key;
@@ -99,23 +109,10 @@ struct _fd_channel_name {
   fd_channel_name *next;
 };
 
-typedef struct _fd_channel_hash *fd_channel_hash;
 struct _fd_channel_hash {
 	int size;
 	fd_channel_node *table;
 };
-
-typedef struct _fd_socket_hash *fd_socket_hash;
-struct _fd_socket_hash {
-	int size;
-	fd_socket_t **table;
-};
-
-/* typedefs for pybindgen */
-/* typedef void (*AcceptCallback) (struct _fd_socket_t *); */
-/* typedef void (*DataCallback) (struct _fd_socket_t *, char *); */
-/* typedef void (*EndCallback) (struct _fd_socket_t *); */
-/* typedef void (*ChannelCallback) (struct _fd_socket_t *, char *, int); */
 
 /* enum our own custom event types */
 enum EVENT {
@@ -190,7 +187,7 @@ enum LOG_LEVEL {
 FILE* log_file;
 void *log_queue;
 fd_channel_hash channel_hashtable;
-fd_socket_hash socket_hashtable;
+fd_socket_t socket_table[MAX_SOCKETS];
 
 /* handshaking function definitions */
 int handshake(int);
@@ -236,10 +233,9 @@ void fd_socket_destroy(int);
 void fd_close(struct ev_loop *, ev_signal *, int);
 void fd_log_write(int level, char *file, int line, char *fmt, ...);
 void *fd_log(void *);
-void add_sock_to_hashtable(fd_socket_t *);
+int add_sock_to_hashtable(int);
 void remove_sock_from_hashtable(fd_socket_t *);
 fd_socket_t *fd_lookup_socket(int);
-fd_socket_hash init_socket_hashtable(int);
 void destroy_all_sockets();
 
 #endif

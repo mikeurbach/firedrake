@@ -78,7 +78,7 @@ fd_channel_node create_channel(char *key){
 
 void fd_remove_from_all_channels(int sockid){
   fd_socket_t *socket = fd_lookup_socket(sockid);
-  fd_channel_name *current = socket->channel_list;
+  fd_channel_name *current = socket->__internal.channel_list;
 
   for (current; current != NULL; current = current->next)
     remove_from_channel(current->key, sockid);
@@ -98,24 +98,25 @@ void remove_from_channel(char *key, int sock){
 
     /* Find the channel watcher matching the given socket id */
     for(current; 
-	current != NULL && current->socket->tcp_sock != sock;  
-	current = current->next)
+				current != NULL && current->socket->id != sock;  
+				current = current->next)
       prev = current;
     
 
     if (current == NULL) {
-    	fd_log_e("socket with sockid %d was not found in channel with name: %s\n", sock, key);
+    	fd_log_e("socket with sockid %d was not found in channel with name"
+							 " %s\n", sock, key);
     }
-
     /* remove watcher from list of watchers in channel */
     else {
-    	fd_log_i("removing sockid %d from channel with name: %s\n", current->socket->tcp_sock, key);
+    	fd_log_i("removing sockid %d from channel with name: %s\n", 
+							 current->socket->id, key);
     	
       if (prev == NULL) {
-	node->watchers = current->next;
+				node->watchers = current->next;
       }
       else {
-	prev->next = current->next;
+				prev->next = current->next;
       }
       
       /* remove this channel from socket's list of channels */
@@ -126,7 +127,7 @@ void remove_from_channel(char *key, int sock){
     }
   }
   else{
-	fd_log_e("node for channel with name %s was null\n", key);
+		fd_log_e("node for channel with name %s was null\n", key);
   }
 }
 
@@ -134,7 +135,7 @@ void remove_from_channel(char *key, int sock){
 void remove_channel_from_sock_list(fd_socket_t *socket, char *key){
   fd_channel_name *current, *prev;
 
-  current = socket->channel_list;
+  current = socket->__internal.channel_list;
   prev = NULL;
 
   /* Find the channel name node matching the key passed in */
@@ -144,14 +145,15 @@ void remove_channel_from_sock_list(fd_socket_t *socket, char *key){
     prev = current;
 
   if (current == NULL) {
-    fd_log_w("channel name %s was not found in socket #%d's channel list\n", key, socket->tcp_sock);
+    fd_log_w("channel name %s was not found in socket #%d's "
+						 "channel list\n", key, socket->tcp_sock);
   }
-
   /* remove this channel node from list of channels */
   else {
-    fd_log_i("removing channel %s from socket %d's channel list\n", current->key, socket->tcp_sock);
+    fd_log_i("removing channel %s from socket %d's channel list\n", 
+						 current->key, socket->tcp_sock);
     if (prev == NULL) {
-      socket->channel_list = current->next;
+      socket->__internal.channel_list = current->next;
     }
     else {
       prev->next = current->next;
@@ -301,8 +303,8 @@ void fd_join_channel(fd_socket_t *socket, char *key,
 	/* add channel to list of channels for this socket */
 	fd_channel_name *new_channel = malloc(sizeof(fd_channel_name));
 	new_channel->key = strdup(key);
-	new_channel->next = socket->channel_list;
-	socket->channel_list = new_channel;
+	new_channel->next = socket->__internal.channel_list;
+	socket->__internal.channel_list = new_channel;
 
 	/* bind the watcher to EV_CUSTOM events */
 	ev_io_init(&watcher->w, fd_channel_listener, watcher->tcp_sock, EV_READ);

@@ -23,10 +23,6 @@
 #include "ev.c"
 #include "fd.h"
 
-void fd_test(){
-	printf("hello, from python\n");
-}
-
 int fd_run (int port, void(*callback)(fd_socket_t *socket)){
   int listenfd, optval, flags;
   fd_socket_t *server = malloc(sizeof(fd_socket_t));
@@ -88,10 +84,6 @@ int fd_run (int port, void(*callback)(fd_socket_t *socket)){
 	
 	pthread_create(log_thread, NULL, fd_log, NULL);
 
-	/* check if the socket hashtable has been initialzed yet */
-	if(socket_hashtable == NULL)
-		socket_hashtable = init_socket_hashtable(HASH_SIZE);
-	
 	/* Initialive watcher to catch SIGINT to close gracefully */
 	ev_signal_init(&sigint_w, fd_close, SIGINT);
 	ev_signal_start(loop, &sigint_w);
@@ -126,33 +118,31 @@ void fd_close(struct ev_loop *loop, ev_signal *w, int revents){
 }
 
 void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
-	int connfd;
+	int connfd, sockid;
 	fd_socket_t *client, *server = wtos(w, read_w);
   struct sockaddr_in cliaddr;
 	struct socket usocket;
   socklen_t clilen = sizeof(cliaddr);
 	
 	/* accept a connection */
-	if((connfd = accept(server->tcp_sock, (struct sockaddr *) &cliaddr, &clilen)) == -1){
+	if((connfd = accept(server->tcp_sock, 
+											(struct sockaddr *) &cliaddr, &clilen)) == -1){
 		/* since we're nonblocking, these are ok */
 		if(errno != EAGAIN && errno != EWOULDBLOCK){
 			perror(__FILE__);
 			exit(errno);
 		}
 		
-		fd_log_w("callback invoked, but accept returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
-
+		fd_log_w("callback invoked, but accept returned "
+						 "EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
 		return;
 	}
 
 	fd_log_m("connection %d accepted...\n", connfd);
 
 	/* set up our client struct */
-	client = malloc(sizeof(fd_socket_t));
-	memset(client, 0, sizeof(fd_socket_t));
-	client->tcp_sock = connfd;
-	client->buffer = malloc(MAX_MESSAGE_LEN);
-	memset(client->buffer, 0, MAX_MESSAGE_LEN);
+	sockid = add_sock_to_hashtable(connfd);
+	client = fd_lookup_socket(sockid);
 
 	/* set up our user socket struct */
 	usocket = malloc(sizeof(struct socket));
@@ -164,7 +154,11 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 
 	/* invoke the user's callback on the fresh socket, 
 	   before the handshake has begun */
-	server->accept_cb(usocket);
+	#if PYTHON_MODE
+	py_init_socket(server->accept_cb, sockid);
+	#else
+	server->accept_cb(client);
+	#endif
 
 	/* start the handshake when the socket is ready */
 	ev_io_init(&client->read_w, handshake_callback_r, connfd, EV_READ);
@@ -178,20 +172,22 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 	fd_socket_t *client = wtos(w, read_w);
 	
 	/* receive the initial HTTP request */
-	if(recv(client->tcp_sock, client->buffer, MAX_MESSAGE_LEN, 0) < 0){
+	if(recv(client->tcp_sock, client->__internal.buffer, 
+					MAX_MESSAGE_LEN, 0) < 0){
 		/* since we're nonblocking, these are ok */
 		if(errno != EAGAIN && errno != EWOULDBLOCK){
 			perror(__FILE__);
 			exit(errno);
 		}
 		
-		fd_log_w("callback invoked, but recv returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+		fd_log_w("callback invoked, but recv returned EAGAIN or EWOULDBLOCK,"
+						 "returning to ev_loop\n");
 
 		return;
 	}
 
 	/* parse out the Sec-Websocket-Key header */
-	line = strtok(client->buffer, "\r\n");
+	line = strtok(client->__internal.buffer, "\r\n");
 	while(line != NULL &&
 				strncmp(line, HEADERKEY, (int) strlen(HEADERKEY)) != 0) {
 		line = strtok(NULL, "\r\n");
@@ -229,44 +225,48 @@ void handshake_callback_r(struct ev_loop *loop, ev_io *w, int revents) {
 	strcat(response, "\r\n\r\n");
 
 	/* store the response in the client struct's buffer */
-	strncpy(client->buffer, response, MAX_MESSAGE_LEN);
+	strncpy(client->__internal.buffer, response, MAX_MESSAGE_LEN);
 
 	free(response);
 	free(key);
 
 	/* finish the handshake when the socket is ready */
 	ev_io_stop(loop, &client->read_w);
-	ev_io_init(&client->write_w, handshake_callback_w, client->tcp_sock, EV_WRITE);
+	ev_io_init(&client->write_w, handshake_callback_w, 
+						 client->tcp_sock, EV_WRITE);
 	ev_io_start(loop, &client->write_w);
 }
 
 void handshake_callback_w(struct ev_loop *loop, ev_io *w, int revents){
 	fd_socket_t *client = wtos(w, write_w);
 
-	if(send(client->tcp_sock, client->buffer, strlen(client->buffer), 0) == -1){
+	if(send(client->tcp_sock, client->__internal.buffer, 
+					strlen(client->__internal.buffer), 0) == -1){
 		/* since we're nonblocking, these are ok */
 		if(errno != EAGAIN && errno != EWOULDBLOCK){
 			perror(__FILE__);
 			exit(errno);
 		}
 
-		fd_log_w("callback invoked, but send returned EAGAIN or EWOULDBLOCK, returning to ev_loop\n");
+		fd_log_w("callback invoked, but send returned EAGAIN or EWOULDBLOCK,"
+						 "returning to ev_loop\n");
 
 		return;
 	}
 
-	fd_log_m("handshake completed with connection %d...\n", client->tcp_sock);
+	fd_log_m("handshake completed with connection %d...\n", 
+					 client->tcp_sock);
 
 	/* stop waiting for a handshake write, initialize read */
 	ev_io_stop(loop, &client->write_w);
 
-	client->just_opened = 1;
-	client->buffer = realloc(client->buffer, MAX_HEADER_LEN);
-	memset(client->buffer, 0, MAX_HEADER_LEN);
-	client->recvs = 0;
+	client->__internal.just_opened = 1;
+	client->__internal.buffer = realloc(client->__internal.buffer, 
+																			MAX_HEADER_LEN);
+	memset(client->__internal.buffer, 0, MAX_HEADER_LEN);
+	client->__internal.recvs = 0;
 
 	/* Now that handshake was completed, add new socket to hastbale */
-	add_sock_to_hashtable(client);
 	ev_io_init(&client->read_w, fd_recv_nb, client->tcp_sock, EV_READ);
 	ev_io_start(loop, &client->read_w);
 }

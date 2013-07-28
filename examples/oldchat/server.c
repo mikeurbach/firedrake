@@ -2,7 +2,7 @@
 
 void onconnection(fd_socket_t *);
 void ondata(fd_socket_t *, char *);
-void onend(fd_socket_t *);
+void onend(fd_socket_t *, char *);
 void onchannel(fd_socket_t *, char *, int);
 
 int main(int argc, char *argv[]){
@@ -36,7 +36,7 @@ void onconnection(fd_socket_t *socket){
 	socket->end_cb = onend;
 
 	/* add the socket to the "chatroom" channel */
-	fd_join_channel(socket, "chatroom", onchannel);
+	/* fd_join_channel(socket, "chatroom", onchannel); */
 }
 
 void ondata(fd_socket_t *socket, char *buffer){
@@ -45,20 +45,20 @@ void ondata(fd_socket_t *socket, char *buffer){
 	fd_log_d("ondata invoked on socket with id %d\n", socket->tcp_sock);
 
 	/* add the received data to our growing buffer */
-	socket->data = realloc(socket->data, length + strlen(buffer) + 1);
-	fd_strcat((char *) socket->data, buffer, length);
+	/* socket->data = realloc(socket->data, length + strlen(buffer) + 1); */
+	/* fd_strcat((char *) socket->data, buffer, length); */
 }
 
-void onend(fd_socket_t *socket){
+void onend(fd_socket_t *socket, char *buffer){
 	/* broadcast your message to the channel */
 	fd_broadcast(socket, "chatroom", (char *) socket->data, TEXT);
 
 	fd_log_d("onend invoked on socket with id %d\n", socket->tcp_sock);
 
 	/* echo server */
-	/* fd_send(socket, (char *) socket->data, TEXT); */
+	fd_send(socket, (char *) buffer, TEXT);
 	
-	socket->data = NULL;
+	/* socket->data = NULL; */
 }
 
 void onchannel(fd_socket_t *socket, char *buffer, int msg_type){

@@ -1,0 +1,16 @@
+-*- mode: grep; default-directory: "/home/mikeurbach/firedrake/" -*-
+Grep started at Wed Jul 24 22:39:13
+
+find . -type d \( -path ./releases -o -path ./libev \) -prune -o -type f -print0 | "xargs" -0 -e grep -nH -e '->.*_cb'
+./firedrakemodule.c:50:/* TODO: use it everywhere there's a socket->*_cb */
+./server_ev.c:35:	socket->data_cb = ondata;
+./server_ev.c:36:	socket->end_cb = onend;
+./fd_run.c:51:	server->accept_cb = callback;
+./fd_run.c:132:	py_init_socket(server->accept_cb, sockid);
+./fd_run.c:134:	server->accept_cb(client);
+./fd_recv_ev.c:298:			 socket->data_cb(socket, socket->__internal.buffer + 
+./fd_recv_ev.c:320:			 socket->end_cb(socket);
+./doc_sections.txt:132:socket->data_cb = ondata;
+./doc_sections.txt:133:socket->end_cb = onend;
+
+Grep finished (matches found) at Wed Jul 24 22:39:13

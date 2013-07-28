@@ -295,8 +295,14 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 		 case BINARY:
 		 case CONTINUATION:
 			 /* notify the "data available" callback that the recv is done */
+			 /* TODO: what if this fails? */
+			 #ifdef PYTHON_MODE
+			 py_call_fs(socket, socket->__internal.buffer + 
+									socket->__internal.header_len, FD_DATA);
+			 #else
 			 socket->data_cb(socket, socket->__internal.buffer + 
 											 socket->__internal.header_len);
+			 #endif
 			 break;
 		 case PING:
 			 /* send a pong */
@@ -308,7 +314,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 		 case CONNECTION_CLOSE:
 			 /* send a matching CLOSE message and close the socket gracefully */
 			 fd_log_i("close message received\n");
-			 status = fd_send(socket, socket->__internal.buffer, 
+			 status = fd_send(socket, socket->__internal.buffer + 
+												socket->__internal.header_len, 
 												CONNECTION_CLOSE);
 			 fd_socket_destroy(socket->tcp_sock);
 			 break;
@@ -316,14 +323,22 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 
 		 /* if this is the final message in a fragment, 
 				and the whole thing fit in the buffer */
-		 if(socket->__internal.fin)
-			 socket->end_cb(socket);
-
+		 /* TODO: handle failure */
+		 if(socket->__internal.fin){
+#ifdef PYTHON_MODE
+			 py_call_fs(socket, socket->__internal.buffer + 
+									socket->__internal.header_len, FD_END);
+#else
+			 socket->end_cb(socket, socket->__internal.buffer + 
+											socket->__internal.header_len);
+#endif
+		 }
+		 
 		 /* Reset data in socket struct to get ready for next recv */
 		 socket->__internal.buffer = realloc(socket->__internal.buffer, 
 																				 MAX_HEADER_LEN);
 		 if(socket->__internal.buffer == NULL){
-			 /* handle the error */
+			 /* TODO: handle the error */
 		 }
 		 memset(socket->__internal.buffer, 0, MAX_HEADER_LEN);
 		 socket->__internal.recvs = 0;

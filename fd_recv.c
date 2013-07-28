@@ -329,8 +329,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 			 py_call_fs(socket, socket->__internal.buffer + 
 									socket->__internal.header_len, FD_END);
 #else
-			 socket->end_cb(socket, socket->__internal.buffer + 
-											socket->__internal.header_len);
+			 if(socket->end_cb)
+				 socket->end_cb(socket, socket->__internal.buffer + 
+												socket->__internal.header_len);
 #endif
 		 }
 		 

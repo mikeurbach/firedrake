@@ -1,2 +1,1 @@
-firedrake
-=========
+Fast websocket server library.

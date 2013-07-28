@@ -1,24 +1,3 @@
-/* 
-    firedrake: an efficient library for writing websocket servers
-
-    Copyright (C) 2013 Mike Urbach, Matt Diephui, Drew Jankowski
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-		Report bugs to <mikeurbach@gmail.com>
-*/
-
 #include "fd.h"
 
 #define PAYLOAD_EXT_16 126
@@ -350,8 +329,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 			 py_call_fs(socket, socket->__internal.buffer + 
 									socket->__internal.header_len, FD_END);
 #else
-			 socket->end_cb(socket, socket->__internal.buffer + 
-											socket->__internal.header_len);
+			 if(socket->end_cb)
+				 socket->end_cb(socket, socket->__internal.buffer + 
+												socket->__internal.header_len);
 #endif
 		 }
 		 

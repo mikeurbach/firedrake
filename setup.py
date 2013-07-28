@@ -6,7 +6,7 @@ firedrake_module = Extension(
     include_dirs = ['./libev'],
     libraries = ['pthread', 'ssl', 'crypto'],
     library_dirs = ['/usr/include'],
-    sources = ['fd_run.c', 'base64.c', 'queue.c', 'fd_util.c', 'fd_send_ev.c', 'fd_recv_ev.c', 'fd_channels.c', 'firedrakemodule.c'],
+    sources = ['fd_run.c', 'fd_send.c', 'fd_recv.c', 'fd_channels.c', 'fd_util.c', 'base64.c', 'queue.c', 'firedrakemodule.c'],
     extra_compile_args = ['-std=gnu99']
     )
 

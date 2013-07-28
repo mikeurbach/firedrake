@@ -122,10 +122,10 @@ fd_socket_t *fd_lookup_socket(int sockid){
 /* remove all sockets from hashtable */
 void destroy_all_sockets(){
 
-  for(int i = 0; i < MAX_SOCKETS; i += sizeof(fd_socket_t))
-		free((fd_socket_t *) &socket_table[i]);
+  /* for(int i = 0; i < MAX_SOCKETS; i++) */
+	/* 	free((fd_socket_t *) &socket_table[i]); */
 
-  free(socket_table);
+  /* free(socket_table); */
 }
 
 /* Remove socket from table */

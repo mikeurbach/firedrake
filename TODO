@@ -1,0 +1,5 @@
+A. Rewrite channel messaging with wait free queues
+B. Write Python channel interface
+C. Valgrind
+D. Pass Autobahn tests
+E. Valgrind

@@ -31,7 +31,7 @@
 /* libev */
 #ifndef EV_STANDALONE
 #define EV_STANDALONE 1
-#include "ev.h"
+#include "libev/ev.h"
 #endif
 
 /* defines */

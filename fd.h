@@ -58,59 +58,54 @@ typedef struct _fd_channel_hash *fd_channel_hash;
 
 /* structs */
 struct _fd_socket_internal {
-	uint64_t bytes_expected;
-	uint64_t bytes_received;
-	uint64_t bytes_outgoing;
-	uint64_t bytes_sent;
-	int header_len;
-	int fin;
-	int opcode;
-	uint32_t mask_key;
-	int mask_start;
-	char *buffer;
-	char *out_buffer;
-	unsigned int last_recv_opcode;
-	bool is_open;
+  uint64_t bytes_expected;
+  uint64_t bytes_received;
+  uint64_t bytes_outgoing;
+  uint64_t bytes_sent;
+  int header_len;
+  int fin;
+  int opcode;
+  uint32_t mask_key;
+  int mask_start;
+  char *buffer;
+  char *out_buffer;
+  unsigned int last_recv_opcode;
+  bool is_open;
   int just_opened;
   int recvs;
-	int sends;
-	int event;
+  int sends;
+  int event;
   fd_socket_t *next;
   fd_channel_name *channel_list;
 };
 
 struct _fd_socket_t {
-	ev_io read_w;
-	ev_io write_w;
-	int	tcp_sock;
-	int id;
-	void *data;
-	void (*accept_cb)(fd_socket_t *socket);
-	#ifdef PYTHON_MODE
-	PyObject *py_socket;
-	#else
-	void (*data_cb)(fd_socket_t *socket, char *buffer);
-	void (*end_cb)(fd_socket_t *socket, char *buffer);
-	void (*close_cb)(fd_socket_t *socket, char *buffer);
-	#endif
-	fd_socket_internal __internal;
+  ev_io read_w;
+  ev_io write_w;
+  int	tcp_sock;
+  int id;
+  void *data;
+  void (*accept_cb)(fd_socket_t *socket);
+#ifdef PYTHON_MODE
+  PyObject *py_socket;
+#else
+  void (*data_cb)(fd_socket_t *socket, char *buffer);
+  void (*end_cb)(fd_socket_t *socket, char *buffer);
+  void (*close_cb)(fd_socket_t *socket, char *buffer);
+#endif
+  fd_socket_internal __internal;
 };
 
 struct _fd_channel_watcher {
-	ev_io w;
-	fd_socket_t *socket;
-	int tcp_sock;
-	int msg_type;
-	char *buffer;
-	void (*cb)(fd_socket_t *socket, char *buffer, int msg_type);
-	fd_channel_watcher next;
+  fd_socket_t *socket;
+  void (*cb)(fd_socket_t *socket, char *buffer, int msg_type);
+  fd_channel_watcher next;
 };
 
 struct _fd_channel_node {
-	fd_channel_watcher watchers;
-	char *key;
-	char *buffer;
-	fd_channel_node next;
+  fd_channel_watcher watchers;
+  char *key;
+  fd_channel_node next;
 };
 
 
@@ -120,15 +115,15 @@ struct _fd_channel_name {
 };
 
 struct _fd_channel_hash {
-	int size;
-	fd_channel_node *table;
+  int size;
+  fd_channel_node *table;
 };
 
 /* enum our own custom event types */
 enum EVENT {
-	FD_DATA,
-	FD_END,
-	FD_CLOSE
+  FD_DATA,
+  FD_END,
+  FD_CLOSE
 };
 
 /* enum the opcodes for the data framing */

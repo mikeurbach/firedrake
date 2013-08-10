@@ -17,4 +17,4 @@ clean:
 	rm -f *.o *.so
 	rm -f *~ *#
 	rm -f log.txt
-	rm -f echo
+	rm -f echo chat

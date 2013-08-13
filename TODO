@@ -1,4 +1,14 @@
-A. Write Python channel interface
-B. Valgrind
-C. Pass Autobahn tests
-D. Valgrind
+Version 0.1 (in progress)
+-----------
+1. Write Python channel interface
+2. Valgrind
+3. Pass Autobahn tests
+4. Valgrind
+
+Version 0.2
+-----------
+1. Write interfaces for Node, Ruby, Go, etc.
+
+Version 0.3
+-----------
+1. Service oriented architecture

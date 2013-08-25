@@ -1,5 +1,14 @@
-A. Rewrite channel messaging with wait free queues
-B. Write Python channel interface
-C. Valgrind
-D. Pass Autobahn tests
-E. Valgrind
+Version 0.1 (in progress)
+-----------
+1. Write Python channel interface
+2. Valgrind
+3. Pass Autobahn tests
+4. Valgrind
+
+Version 0.2
+-----------
+1. Write interfaces for Node, Ruby, Go, etc.
+
+Version 0.3
+-----------
+1. Service oriented architecture

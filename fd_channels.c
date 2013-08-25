@@ -30,28 +30,26 @@ fd_channel_node lookup_channel(char *key){
 }
 
 fd_channel_node create_channel(char *key){
-	int slot;
-	fd_channel_node node = lookup_channel(key);
-
-	slot = hash(key, channel_hashtable->size);
-
-	/* only create a channel if it doesn't already exist */
-	if(node == NULL){
-		/* set up this channel's node */
-		node = malloc(sizeof(struct _fd_channel_node));
-		memset(node, 0, sizeof(struct _fd_channel_node));
-		node->key = strdup(key);
-		node->buffer = malloc(MAX_MESSAGE_LEN);
-		memset(node->buffer, 0, MAX_MESSAGE_LEN);
-
-		/* put it in the hash table */
-		node->next = channel_hashtable->table[slot];
-		channel_hashtable->table[slot] = node;
-	}
-	else
-	  fd_log_w("Channel with name %s already exists\n", key);
-
-	return node;
+  int slot;
+  fd_channel_node node = lookup_channel(key);
+  
+  slot = hash(key, channel_hashtable->size);
+  
+  /* only create a channel if it doesn't already exist */
+  if(node == NULL){
+    /* set up this channel's node */
+    node = malloc(sizeof(struct _fd_channel_node));
+    memset(node, 0, sizeof(struct _fd_channel_node));
+    node->key = strdup(key);
+    
+    /* put it in the hash table */
+    node->next = channel_hashtable->table[slot];
+    channel_hashtable->table[slot] = node;
+  }
+  else
+    fd_log_w("Channel with name %s already exists\n", key);
+  
+  return node;
 }
 
 
@@ -70,43 +68,42 @@ void remove_from_channel(char *key, int sock){
   fd_channel_node node = lookup_channel(key);
   fd_channel_watcher current, prev;
   struct ev_loop *loop = EV_DEFAULT;
-
+  
   if (node != NULL){
     current = node->watchers;
     prev = NULL;
-
+    
     /* Find the channel watcher matching the given socket id */
     for(current; 
-				current != NULL && current->socket->id != sock;  
-				current = current->next)
+	current != NULL && current->socket->id != sock;  
+	current = current->next)
       prev = current;
     
-
+    
     if (current == NULL) {
-    	fd_log_e("socket with sockid %d was not found in channel with name"
-							 " %s\n", sock, key);
+      fd_log_e("socket with sockid %d was not found in channel with name"
+	       " %s\n", sock, key);
     }
     /* remove watcher from list of watchers in channel */
     else {
-    	fd_log_i("removing sockid %d from channel with name: %s\n", 
-							 current->socket->id, key);
-    	
+      fd_log_i("removing sockid %d from channel with name: %s\n", 
+	       current->socket->id, key);
+      
       if (prev == NULL) {
-				node->watchers = current->next;
+	node->watchers = current->next;
       }
       else {
-				prev->next = current->next;
+	prev->next = current->next;
       }
       
       /* remove this channel from socket's list of channels */
       remove_channel_from_sock_list(current->socket, key);   
-
-      ev_io_stop(loop, &current->w);
+      
       free(current);
     }
   }
   else{
-		fd_log_e("node for channel with name %s was null\n", key);
+    fd_log_e("node for channel with name %s was null\n", key);
   }
 }
 
@@ -152,41 +149,38 @@ void fd_close_channel(char *key){
   struct ev_loop *loop = EV_DEFAULT;
 
   fd_log_i("attempting to close channel %s\n", key);
-
+  
   if (node == NULL){
-		fd_log_e("the node you are attempting to delete does not exist.\n");
+    fd_log_e("the node you are attempting to delete does not exist.\n");
     return;
   }
   else {
     if (node->watchers == NULL){
       fd_log_w("no current watchers attached to channel %s\n", key);
-		} else {
+    } else {
       prev = node->watchers;
       current = prev->next;
-
+      
       /* go through watchers, remove each from list */
       for (current; current != NULL; current = current->next){
-      
-				remove_channel_from_sock_list(prev->socket, key);
-
-				ev_io_stop(loop, &prev->w);
-				free(prev);
-				prev = current;
+	remove_channel_from_sock_list(prev->socket, key);
+	
+	free(prev);
+	prev = current;
       }
-
+      
       /* remove final node after current is null */
       remove_channel_from_sock_list(prev->socket, key);
-      ev_io_stop(loop, &prev->w);
       free(prev);
     }
-
+    
     /* now release the channel node */
     fd_channel_node pr, ch = channel_hashtable->table[slot];
     pr = NULL;
-
+    
     for (ch;
-				 ch != NULL && strcmp(ch->key, node->key);
-				 ch = ch->next)
+	 ch != NULL && strcmp(ch->key, node->key);
+	 ch = ch->next)
       pr = ch;
     
     /* if prev is null, channel node is first in slot  */
@@ -198,7 +192,7 @@ void fd_close_channel(char *key){
     //    free(node->buffer);
     // free(node->key);
     free(node);
-
+    
   }
 } 
 
@@ -225,81 +219,66 @@ void close_all_channels(){
 
 }
 
-
-
 /* broadcast a message to a channel */
 int fd_broadcast(fd_socket_t *socket, char *key, char *buffer, 
-								 int msg_type){
-	int counter;
-	fd_channel_node channel = lookup_channel(key);
-	fd_channel_watcher node;
-	struct ev_loop *loop = EV_DEFAULT;
+		 int msg_type){
+  int counter;
+  fd_channel_node channel = lookup_channel(key);
+  fd_channel_watcher node;
 
-	channel->buffer = realloc(channel->buffer, strlen(buffer) + 1);
-	fd_strcat(channel->buffer, buffer, 0);
-
-	/* loop through all the watchers in this channel */
-	for(counter = 0, node = channel->watchers; node != NULL; 
-			counter++, node = node->next){
-		/* realloc may have changed this channel's buffer's location */
-		node->buffer = channel->buffer;
-
-		/* if it's not ourself, use libev to send the message */
-		if(node->socket != socket){
-			node->msg_type = msg_type;
-			ev_feed_event(loop, &node->w, EV_CUSTOM);
-		}
-	}
-
-	return counter;
-}
-
-/* callback to invoke when there is a message to the channel */
-void fd_channel_listener(struct ev_loop *loop, ev_io *w, int revents){
-	assert_event(EV_CUSTOM);
-
-	fd_channel_watcher watcher = (fd_channel_watcher) w;
-	watcher->cb(watcher->socket, watcher->buffer, watcher->msg_type);
+  if(!channel){
+    fd_log_e("socket with id %d attempted to broadcast to a non-existant channel\n", socket->id);
+    return -1;
+  }
+  
+  /* loop through all the watchers in this channel */
+  for(counter = 0, node = channel->watchers; node != NULL; 
+      counter++, node = node->next){
+    
+    /* if it's not ourself, call the callback on the buffer */
+    if(node->socket != socket){
+      node->cb(node->socket, buffer, msg_type);
+    }
+  }
+  
+  return counter;
 }
 
 void fd_join_channel(fd_socket_t *socket, char *key, 
-										 void (*cb)(fd_socket_t *, char *, int)){
-	struct ev_loop *loop = EV_DEFAULT;
-	fd_channel_node channel = lookup_channel(key);
-	fd_channel_watcher watcher = malloc(sizeof(struct _fd_channel_watcher));
-	
-	/* initialize the watcher */
-	watcher->socket = socket;
-	watcher->tcp_sock = socket->tcp_sock;
-	watcher->msg_type = -1;
-	watcher->buffer = channel->buffer;
-	watcher->cb = cb;
-	
-	/* add the watcher to the channel's list of watchers */
-	watcher->next = channel->watchers;
-	channel->watchers = watcher;
-
-	/* add channel to list of channels for this socket */
-	fd_channel_name *new_channel = malloc(sizeof(fd_channel_name));
-	new_channel->key = strdup(key);
-	new_channel->next = socket->__internal.channel_list;
-	socket->__internal.channel_list = new_channel;
-
-	/* bind the watcher to EV_CUSTOM events */
-	ev_io_init(&watcher->w, fd_channel_listener, watcher->tcp_sock, EV_READ);
-	ev_io_start(loop, &watcher->w);
+		     void (*cb)(fd_socket_t *, char *, int)){
+  fd_channel_node channel = lookup_channel(key);
+  fd_channel_watcher watcher = malloc(sizeof(struct _fd_channel_watcher));
+  
+  if(!channel){
+    fd_log_e("socket with id %d attempted to broadcast to a non-existant channel\n", socket->id);
+    return;
+  }
+  
+  /* initialize the watcher */
+  watcher->socket = socket;
+  watcher->cb = cb;
+  
+  /* add the watcher to the channel's list of watchers */
+  watcher->next = channel->watchers;
+  channel->watchers = watcher;
+  
+  /* add channel to list of channels for this socket */
+  fd_channel_name *new_channel = malloc(sizeof(fd_channel_name));
+  new_channel->key = strdup(key);
+  new_channel->next = socket->__internal.channel_list;
+  socket->__internal.channel_list = new_channel;
 }
 
 /* Peter Weinberger's hash function, from the dragon book */
 int hash(char *s, int size){
-	unsigned h = 0, g;
+  unsigned h = 0, g;
   char *p;
-
+  
   for (p = s; *p != '\0'; p++){
-		h = (h << 4) + *p;
-		if ((g = (h & 0xf0000000)) != 0)
-			h ^= (g >> 24) ^ g;
-	}
-
+    h = (h << 4) + *p;
+    if ((g = (h & 0xf0000000)) != 0)
+      h ^= (g >> 24) ^ g;
+  }
+  
   return h % size;
 }

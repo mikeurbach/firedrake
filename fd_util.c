@@ -40,7 +40,14 @@ void fd_socket_destroy(int sockid){
 }
 
 
-
+/********************************************
+Writes the LINE with FMT (format) to the FILE at the given log LEVEL.
+The different levels of logging are enum'ed in LOG_LEVEL in fd.h.
+The log will include the file and line of the log entry, as well as the time
+at which the entry occurred.
+The line can be a format string like any printf statement to allow for debugging from
+within a firedrake application.
+********************************************/
 void fd_log_write(int level, char *file, int line, char *fmt, ...){
 	char output[MAX_LOG_LINE], message[MAX_LOG_LINE];
 	va_list args;
@@ -48,25 +55,28 @@ void fd_log_write(int level, char *file, int line, char *fmt, ...){
 	memset(output, 0, MAX_LOG_LINE);
 	memset(message, 0, MAX_LOG_LINE);
 
+	time_t now;
+	time(&now);
+
 	/* start the line with the appropriate prefix */
 	switch (level) {
 	case DEBUG:
-		snprintf(output, MAX_LOG_LINE, "[DEBUG] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[DEBUG] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	case INFO:
-		snprintf(output, MAX_LOG_LINE, "[INFO] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[INFO] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	case MESSAGE:
-		snprintf(output, MAX_LOG_LINE, "[MESSAGE] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[MESSAGE] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	case WARNING:
-		snprintf(output, MAX_LOG_LINE, "[WARNING] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[WARNING] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	case CRITICAL:
-		snprintf(output, MAX_LOG_LINE, "[CRITICAL] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[CRITICAL] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	case ERROR:
-		snprintf(output, MAX_LOG_LINE, "[ERROR] %s:%d: ", file, line);
+		snprintf(output, MAX_LOG_LINE, "[ERROR] %s:%d:%s\t", file, line, ctime(&now));
 		break;
 	}
 	

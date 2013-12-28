@@ -20,6 +20,7 @@
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
 #include <pthread.h>
+#include <time.h>
 #include "base64.h"
 #include "queue.h"
 

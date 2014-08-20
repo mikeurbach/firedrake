@@ -24,11 +24,6 @@
 #include "base64.h"
 #include "queue.h"
 
-/* Python */
-#ifdef PYTHON_MODE
-#include <Python.h>
-#endif
-
 /* libev */
 #ifndef EV_STANDALONE
 #define EV_STANDALONE 1
@@ -87,13 +82,9 @@ struct _fd_socket_t {
   int id;
   void *data;
   void (*accept_cb)(fd_socket_t *socket);
-#ifdef PYTHON_MODE
-  PyObject *py_socket;
-#else
   void (*data_cb)(fd_socket_t *socket, char *buffer);
   void (*end_cb)(fd_socket_t *socket, char *buffer);
   void (*close_cb)(fd_socket_t *socket, char *buffer);
-#endif
   fd_socket_internal __internal;
 };
 
@@ -243,12 +234,6 @@ int add_sock_to_hashtable(int);
 void remove_sock_from_hashtable(fd_socket_t *);
 fd_socket_t *fd_lookup_socket(int);
 void destroy_all_sockets();
-
-/* python specific helpers */
-#ifdef PYTHON_MODE
-int py_init_socket(void(*)(fd_socket_t *), int);
-int py_call_fs(fd_socket_t *, char *, int);
-#endif
 
 #endif
 

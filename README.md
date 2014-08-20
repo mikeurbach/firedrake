@@ -6,14 +6,7 @@ Build and run the C echo server
 
     $ make
     $ gcc -L. -o echo echo.c -lfiredrake
-    $ ./echo
-
-Build and run the Python echo server
-------------------------------------
-
-    $ python setup.py build
-    $ [sudo] python setup.py install
-    $ python echo.py
+    $ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. ./echo
 
 Run the echo client
 -------------------

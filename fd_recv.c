@@ -296,13 +296,8 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 		 case CONTINUATION:
 			 /* notify the "data available" callback that the recv is done */
 			 /* TODO: what if this fails? */
-			 #ifdef PYTHON_MODE
-			 py_call_fs(socket, socket->__internal.buffer + 
-									socket->__internal.header_len, FD_DATA);
-			 #else
 			 socket->data_cb(socket, socket->__internal.buffer + 
 											 socket->__internal.header_len);
-			 #endif
 			 break;
 		 case PING:
 			 /* send a pong */
@@ -325,14 +320,9 @@ void fd_recv_nb(struct ev_loop *loop, ev_io *w, int revents){
 				and the whole thing fit in the buffer */
 		 /* TODO: handle failure */
 		 if(socket->__internal.fin){
-#ifdef PYTHON_MODE
-			 py_call_fs(socket, socket->__internal.buffer + 
-									socket->__internal.header_len, FD_END);
-#else
 			 if(socket->end_cb)
 				 socket->end_cb(socket, socket->__internal.buffer + 
 												socket->__internal.header_len);
-#endif
 		 }
 		 
 		 /* Reset data in socket struct to get ready for next recv */

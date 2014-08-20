@@ -124,11 +124,7 @@ void accept_callback(struct ev_loop *loop, ev_io *w, int revents){
 
 	/* invoke the user's callback on the fresh socket, 
 	   before the handshake has begun */
-	#if PYTHON_MODE
-	py_init_socket(server->accept_cb, sockid);
-	#else
 	server->accept_cb(client);
-	#endif
 
 	/* start the handshake when the socket is ready */
 	ev_io_init(&client->read_w, handshake_callback_r, connfd, EV_READ);
